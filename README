@@ -1,0 +1,9 @@
+Islandora Oai provider.
+
+Currently requires objects to have a MODS stream, will probably add a fallback to DC.  Next steps after that would be to allow configuration.
+
+Requires the Islandora_solr_client module as well as fedora_repository.
+
+Currently in testing stages and uses a MOCK MODS stream.
+
+Your solr index should have a field PID that is the unique identifier and a timestamp stored in fgs.lastModifiedDate (the date field is subject to change and both these could probably be defined in the congiguration)
