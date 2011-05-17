@@ -6,4 +6,4 @@ Requires the Islandora_solr_client module as well as fedora_repository.
 
 Currently in testing stages and uses a MOCK MODS stream.
 
-Your solr index should have a field PID that is the unique identifier and a timestamp stored in fgs.lastModifiedDate (the date field is subject to change and both these could probably be defined in the congiguration)
+Your solr index should have a field PID that is the unique identifier and a timestamp stored in fgs.lastModifiedDate (the date field is subject to change and both of these could probably be defined in the configuration)
