@@ -360,9 +360,9 @@ function islandora_oai_get_record($args) {
     islandora_oai_add_error('missingArgument', 'metadataPrefix');
     return FALSE;
   }
- $query = "PID:".$identifier;
- $results = islandora_oai_query_solr('PID',$identifier);
- $record = $results->response->docs[0];
+  $query = "PID:" . $identifier;
+  $results = islandora_oai_query_solr(0, 'PID', $identifier);
+  $record = $results->response->docs[0];
 
 
   if (!$record->PID) {
@@ -428,7 +428,6 @@ function _islandora_oai_checkDateFormat($date) {
     return FALSE;
   }
 }
-
 
 /**
  * generate a random value for resumptionToken
@@ -596,29 +595,33 @@ function islandora_oai_get_earliest_datetime() {
   return $earliest_datestamp;
 }
 
-function islandora_oai_query_solr($field = NULL, $query = NULL){
+function escapePhrase($value) {
+  $pattern = '/("|:|[|]|\\\)/';
+  $replace = '\\\$1';
+
+  return preg_replace($pattern, $replace, $value);
+}
+
+function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL) {
   module_load_include('php', 'islandora_solr_search', 'Solr/Service');
   $requestHandler = variable_get("islandora_solr_search_block_request_handler", t("standard"));
-  $url = variable_get('islandora_solr_search_block_url', 'localhost:8080/solr');//use the solr client configs
+  $url = variable_get('islandora_solr_search_block_url', 'localhost:8080/solr'); //use the solr client configs
   $pathParts = parse_url($url);
-   $solr = new Apache_Solr_Service($pathParts['host'], $pathParts['port'], $pathParts['path'] . '/');
-  if(empty($field)){
-    $field = 'PID';
+  $solr = new Apache_Solr_Service($pathParts['host'], $pathParts['port'], $pathParts['path'] . '/');
+  if (empty($query)) {
+    $query = '*'; //don't want to escape this
   }
-  if(empty($query)){
-    $query = '*';
-  }else{
-    $query = $solr->escape($query);
+  else {
+    $query = escapePhrase("$query");
   }
-
-  $query = $field.':'.$query;
+  $query = $field . ':' . $query;
   $additionalParams = array(
     'qt' => $requestHandler,
     'fl' => 'Title, PID, fgs.lastModifiedDate',
   );
   $limit = variable_get('oai2_max_size', '20');
   try {
-    $results = $solr->search($query, 0, $limit, $additionalParams);
+    $results = $solr->search($query, $start, $limit, $additionalParams);
   } catch (Exception $e) {
     drupal_set_message(t('error searching ') . $e->getMessage());
   }
@@ -759,47 +762,29 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
     }
   }
 
+  ////could be problems here if we are adding or deleting records as this could change next time they query
+  $field = 'PID';
+  $query = NULL;
+  //date stuff will need to implement
+  if (isset($from)) {
+    $field = 'fgs.lastModifiedDate';
+    $query = "[$from TO ";
 
-  //get our content types array
-  //$oai_content_types  = variable_get('oai2_content_types', array());
-  //build an array of just the content types we want to expose for our where clause
-  //$query_types = array();
-  // foreach ($oai_content_types as $type => $selected) {
-  //  if ($selected) {
-  ////    $query_types[] = $type;
-  //  }
-  //}
- /* module_load_include('php', 'islandora_solr_search', 'Solr/Service');
-  $requestHandler = variable_get("islandora_solr_search_block_request_handler", t("standard"));
-  $url = variable_get('islandora_solr_search_block_url', 'localhost:8080/solr');//use the solr client configs
-  $pathParts = parse_url($url);
-
-  $query = 'PID:*';
-  $solr = new Apache_Solr_Service($pathParts['host'], $pathParts['port'], $pathParts['path'] . '/');
-  $additionalParams = array(
-    'qt' => $requestHandler,
-    'fl' => 'Title, PID, fgs.lastModifiedDate',
-  );
-  $limit = variable_get('oai2_max_size', '20');
-  try {
-    $results = $solr->search($query, 0, $limit, $additionalParams);
-  } catch (Exception $e) {
-    drupal_set_message(t('error searching ') . $e->getMessage());
-  }*/
-  $results = islandora_oai_query_solr();
-
-  /* date stuff will need to implement
-    if (isset($from)) {
-    $where_clause .= ' AND n.changed >= %d';
-    $query_args[] = $from_time;
-    }
 
     if (isset($until)) {
-    $where_clause .= ' AND changed <= %d';
-    $query_args[] = $until_time;
-    } */
+      $query .= "$until]";
+    }
+    else {
+
+      $query .= gmstrftime('%Y-%m-%dT%TZ', time()) . ']';
+    }
+  }
 
 
+  $results = islandora_oai_query_solr($token->deliveredrecords, $field, $query);
+  $num_rows = (int) $results->response->numFound;
+
+  $output = '';
   $response_xml = '';
   //while ($row = db_fetch_object($result)) {
   foreach ($results->response->docs as $doc) {
@@ -812,13 +797,17 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
     $output .= $response_xml;
 
     if ($num_rows - $token->deliveredrecords > $max_records) {
-
+      if (!isset($metadata_prefix)) {
+        $metadata_prefix = 'oai_dc'; //this is a bit of a hack if its null here something went wrong and we are assuming oai_dc whichis all we default
+        //but this could cause problems
+        //TODO fix
+      }
       $token_string = _get_random_token();
       $arg_string = implode("#", $query_args);
       $thendeliveredrecords = (int) $token->deliveredrecords + $max_records;
-      $query_insert = "INSERT INTO {oai2_tokens} (id, deliveredrecords, extquery, queryargs, metadata_prefix, timestamp)
-      VALUES (%d,%d,'%s','%s','%s', %d)";
-      db_query($query_insert, $token_string, $thendeliveredrecords, $sql, $arg_string, $metadata_prefix, time());
+      $query_insert = "INSERT INTO {oai2_tokens} (id, deliveredrecords,  queryargs, metadata_prefix, timestamp)
+      VALUES (%d,%d,'%s','%s', %d)";
+      db_query($query_insert, $token_string, $thendeliveredrecords, $arg_string, $metadata_prefix, time());
 
       $token_xml = islandora_oai_get_token_xml($num_rows, $token->deliveredrecords, $expire_time, $token_string);
     }
@@ -849,7 +838,8 @@ function islandora_oai_build_record_response($record, $full_record = FALSE) {
   //var_dump($record);exi();
   $identifier = $record->PID;
   $repo_id = variable_get('oai2_repository_identifier', 'drupal-site.org');
-  $datestamp = gmdate("Y-m-d\TH:i:s\Z", $record->fgs_lastModifiedDate);
+  $lastModifiedDate = 'fgs.lastModifiedDate';
+  $datestamp = $record->$lastModifiedDate; //gmdate("Y-m-d\TH:i:s\Z", $record->$lastModifiedDate);
   $status_deleted = FALSE;
   $output = '';
   if ($full_record) { // list records...
@@ -859,10 +849,11 @@ function islandora_oai_build_record_response($record, $full_record = FALSE) {
   $output .= '   <header>' . "\n";
   $output .= islandora_oai_xmlformat('oai:' . $repo_id . ':' . $identifier, 'identifier', '', 4);
   $output .= islandora_oai_xmlformat($datestamp, 'datestamp', '', 4);
-
-  $setspec = str_replace(" ", "_", strtolower($record->Title));
-  //$output .= islandora_oai_xmlformat($setspec, 'setSpec', '', 4);
-
+  $title = $record->Title;
+  //if (!empty($title)) {
+  //  $setspec = str_replace(" ", "_", strtolower($record->Title));
+  //  $output .= islandora_oai_xmlformat($setspec, 'setSpec', '', 4);
+  //}
   $output .= '   </header>' . "\n";
 
   //------- List record values
