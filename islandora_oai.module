@@ -885,10 +885,13 @@ function islandora_oai_build_record_response($record, $full_record = FALSE) {
       $input = new DomDocument();
       $didLoadOk = $input->loadXML(utf8_encode($mods));
       if ($didLoadOk) {
-        $output .= '   <metadata>' . "\n";
         $xslt->importStylesheet($XSL);
-        $output .= $xslt->transformToXml($input);
-        $output .= "</metadata>\n";
+        $mods_stream = $xslt->transformToXml($input);//mods stream could still be empty if there is incorrect namespace so check
+        if (!empty($mods_stream)) {
+          $output .= '   <metadata>' . "\n";
+          $output .= $mods_stream;
+          $output .= "</metadata>\n";
+        }
       }
     }
     else if (!empty($dc)) {
