@@ -735,12 +735,18 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
   }
 
   //------  Resume previous session?
+
   if (isset($resumption_token)) {
     $token = islandora_oai_get_token($resumption_token);
     if (!is_object($token)) {
       return FALSE;
     }
     $query_args = explode('#', $token->queryargs);
+
+    if (isset($query_args) && (!empty($query_args[0]) || !empty($query_args[1]))) {
+      $from = $query_args[0];
+      $until = $query_args[1];
+    }
   }
   //------- Not resume, new session
   else {
@@ -762,21 +768,24 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
     }
   }
 
-  ////could be problems here if we are adding or deleting records as this could change next time they query
+
   $field = 'PID';
   $query = NULL;
   //date stuff will need to implement
+  //this section below does not implement just using until I have to read the spec to see if servers can just specifiy until
   if (isset($from)) {
+    $query_args[] = $from;
     $field = 'fgs.lastModifiedDate';
     $query = "[$from TO ";
 
-
     if (isset($until)) {
+      $query_args[] = $until;
       $query .= "$until]";
     }
     else {
-
-      $query .= gmstrftime('%Y-%m-%dT%TZ', time()) . ']';
+      $until = gmstrftime('%Y-%m-%dT%TZ', time());
+      $query_args[] = $until;
+      $query .= $until . ']';
     }
   }
 
@@ -798,7 +807,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
 
     if ($num_rows - $token->deliveredrecords > $max_records) {
       if (!isset($metadata_prefix)) {
-        $metadata_prefix = 'oai_dc'; //this is a bit of a hack if its null here something went wrong and we are assuming oai_dc whichis all we default
+        $metadata_prefix = 'oai_dc'; //this is a bit of a hack if its null here something went wrong and we are assuming oai_dc which is all we do for now
         //but this could cause problems
         //TODO fix
       }
@@ -831,7 +840,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
 }
 
 /**
- * understand how to build a record/id response given a db result object of the node from the node table
+ * understand how to build a record/id response given a solr result 
  *
  * */
 function islandora_oai_build_record_response($record, $full_record = FALSE) {
@@ -858,26 +867,35 @@ function islandora_oai_build_record_response($record, $full_record = FALSE) {
 
   //------- List record values
   if ($full_record) {
-    $output .= '   <metadata>' . "\n";
-    //$prefix = 'oai_dc';
-    //$result_metadata = db_query("SELECT * FROM {oai2_metadata_formats} WHERE name='%s' ", $prefix);
-    //get the MODS and then transform to oai_dc
     module_load_include('inc', 'fedora_repository', 'api/fedora_item');
-    //$object = new Fedora_Item($identifier);
-    //$mods = $object->get_datastream_dissemination('MODS');
-    $mods = trim(file_get_contents('/Users/paulpound/Temp Stuff/mods.xml'));
-    $xslt = new XSLTProcessor();
-    $XSL = new DOMDocument();
-    $file = drupal_get_path('module', 'islandora_oai') . '/xsl/MODS3-22simpleDC.xsl';
-    $XSL->load($file);
-    $input = new DomDocument();
-    $didLoadOk = $input->loadXML(utf8_encode($mods));
-    $xslt->importStylesheet($XSL);
-    $output .= $xslt->transformToXml($input);
-
-    $output .= "</metadata>\n";
-
-
+    $object = new Fedora_Item($identifier);
+    $mods = $object->get_datastream_dissemination('MODS');
+    if (empty($mods)) {
+      $dc = $object->get_datastream_dissemination('DC');
+    }
+    if (!empty($mods)) {
+      //$prefix = 'oai_dc';
+      //$result_metadata = db_query("SELECT * FROM {oai2_metadata_formats} WHERE name='%s' ", $prefix);
+      //get the MODS and then transform to oai_dc
+      //$mods = trim(file_get_contents('/Users/paulpound/Temp Stuff/mods.xml'));
+      $xslt = new XSLTProcessor();
+      $XSL = new DOMDocument();
+      $file = drupal_get_path('module', 'islandora_oai') . '/xsl/MODS3-22simpleDC.xsl';
+      $XSL->load($file);
+      $input = new DomDocument();
+      $didLoadOk = $input->loadXML(utf8_encode($mods));
+      if ($didLoadOk) {
+        $output .= '   <metadata>' . "\n";
+        $xslt->importStylesheet($XSL);
+        $output .= $xslt->transformToXml($input);
+        $output .= "</metadata>\n";
+      }
+    }
+    else if (!empty($dc)) {
+      $output .= '   <metadata>' . "\n";
+      $output .=$dc;
+      $output .= "</metadata>\n";
+    }
     $output .= '  </record>' . "\n";
   }
 
@@ -1001,6 +1019,7 @@ function islandora_oai_list_metadata_formats($args) {
 /**
  * List Sets of Repository
  * THIS FEATURE IS NOT CURRENTLY IMPLEMENTED
+ * and is an optional part of the spec
  *
  * @param $args arguments of the Post or Get Request
  * @return output in XML-Format
@@ -1071,67 +1090,6 @@ function islandora_oai_list_sets($args) {
   }
 
   return $output;
-}
-
-/**
- * knows how to build an array of all content types, their fields, and their DCMI Metadata mappings
- *
- * @param $content_type string
- *   if this parameter is passed, only this content type's fields will be returned
- *
- * @return array $field_mappings
- * */
-function islandora_oai_get_field_mappings($content_type = FALSE) {
-
-  static $field_mappings;
-
-  //only compute if we don't already have a cached $field_mappings
-  if (!isset($field_mappings)) {
-
-    $field_mappings = array();
-
-    //loop through content types and fetch all fields
-    $content_types = variable_get('oai2_content_types', array());
-    foreach ($content_types as $type => $selected) {
-
-      //if we have exposed a content type
-      if ($selected) {
-
-        $field_mappings[$type] = array();
-
-        //get details about that content type and it's fields
-        $content_type_details = content_types($type);
-        $fields = $content_type_details['fields'];
-
-        $titleMap = variable_get('oai2_map:' . $type . ':title', '');
-        $bodyMap = variable_get('oai2_map:' . $type . ':body', '');
-
-        if (!empty($titleMap))
-          $field_mappings[$type]['title'] = $titleMap;
-        if (!empty($bodyMap))
-          $field_mappings[$type]['body'] = $bodyMap;
-
-        //for each field, create a form field with a key like oai2_map:content_type:field_name
-        foreach ($fields as $field) {
-          $field_name = $field['field_name'];
-          $mapping = variable_get('oai2_map:' . $type . ':' . $field['field_name'], '');
-          $mapping = trim($mapping);
-
-          if (!empty($mapping)) {
-            $field_mappings[$type][$field_name] = $mapping;
-          }
-        }
-      }
-    }
-  }
-
-  //return only content type specific fields if we were passed a $content_type
-  if ($content_type) {
-    return $field_mappings[$content_type];
-  }
-  else {
-    return $field_mappings;
-  }
 }
 
 /**
