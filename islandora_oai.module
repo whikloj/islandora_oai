@@ -569,7 +569,9 @@ function islandora_oai_identify($args) {
 
 /**
  * knows how to get earliest datetime of exposed content
+ *
  * */
+//TODO need to implemet this function for islandora currently it returns 1970 we could probably do an itql query here ordered by date
 function islandora_oai_get_earliest_datetime() {
 
   static $earliest_datestamp;
@@ -772,7 +774,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
   $field = 'PID';
   $query = NULL;
   //date stuff will need to implement
-  //this section below does not implement just using until I have to read the spec to see if servers can just specifiy until
+  //this section below does not implement using until and not from but supports from without until. I have to read the spec to see if servers can just specifiy until
   if (isset($from)) {
     $query_args[] = $from;
     $field = 'fgs.lastModifiedDate';
@@ -1044,26 +1046,29 @@ function islandora_oai_list_sets($args) {
     }
   }
 
-  if (variable_get('oai2_set', '') != 'default') {
-    //$result = db_query('SELECT t.* FROM {term_data} as t WHERE vid=8');
-    $set_query = "SELECT name FROM {term_data} WHERE vid = '%s'";
-    $result = db_query($set_query, variable_get('set', ''));
-  }
-  else {
-    //echo variable_get('contentType','');exit();
-    $set_query = "SELECT name FROM {node_type} WHERE type='%s'";
-    $result = db_query($set_query, variable_get('contentType', ''));
-    //echo variable_get('contentType','');exit(); 
-  }
-
+  $itql_query = 'select $object $title $content from <#ri>
+                             where ($object <info:fedora/fedora-system:def/model#label> $title
+                             and $object <fedora-model:hasModel> $content
+                             and ($content <fedora-model:hasModel> <info:fedora/islandora:collectionCModel>)
+                             and $object <fedora-model:state> <info:fedora/fedora-system:def/model#Active>)
+                             order by $title';
+  module_load_include('inc', 'fedora_repository', 'CollectionClass');
+  $collectionClass = new CollectionClass();
+  $query_results = $collectionClass->getRelatedItems(NULL, $itql_query);
+ 
+  $xml_set = simplexml_load_string ($query_results);
   $list_sets = '';
-
-  while ($row = db_fetch_object($result)) {
+ 
+  foreach ($xml_set->results->result as $result) {
+    //var_dump($result);exit();
     $list_sets .= "   <set>\n";
-    $row->name;
-    $setspec = str_replace(" ", "_", strtolower($row->name));
+    $a = $result->object->attributes();
+    $temp = $a['uri'];
+    $setspec = substr($temp, strrpos($temp, '/') + 1);
+    //$setspec = $result->object;
+    $setName = $result->title;
     $list_sets .= islandora_oai_xmlformat($setspec, 'setSpec', '', 4);
-    $list_sets .= islandora_oai_xmlformat($row->name, 'setName', '', 4);
+    $list_sets .= islandora_oai_xmlformat($setName, 'setName', '', 4);
     /* if (isset($val['setDescription']) && $val['setDescription'] != '') {
       $output .= "    <setDescription>\n";
       $prefix = 'oai_dc';
@@ -1081,7 +1086,7 @@ function islandora_oai_list_sets($args) {
   }
 
   //SETS NOT CURRENTLY IMPLEMENTED
-  $list_sets = FALSE;
+  //$list_sets = FALSE;
 
   if ($list_sets) {
     $output .= "  <ListSets>\n";
