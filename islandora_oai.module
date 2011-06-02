@@ -604,7 +604,23 @@ function escapePhrase($value) {
   return preg_replace($pattern, $replace, $value);
 }
 
-function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL) {
+/* function islandora_coalliance_manager_limit_collections_by_namespace($existing_collections){
+  $pid_namespaces = array(); // explode(' ',variable_get('fedora_pids_allowed', 'default: demo: changeme: Islandora: ilives: '));
+  foreach (explode(' ', trim(variable_get('fedora_pids_allowed', 'default: demo: changeme: Islandora: ilives: ')))as $namespace) {
+  $pid_namespaces[$namespace] = $namespace;
+  }
+  $collections = array();
+  foreach($existing_collections as $collection => $value){
+  foreach($pid_namespaces as $key => $namespace){
+  if(strpos($collection,$namespace)===0){
+  $collections[$collection]=$value;
+  }
+  }
+  }
+  return $collections;
+  } */
+
+function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $set = NULL) {
   module_load_include('php', 'islandora_solr_search', 'Solr/Service');
   $requestHandler = variable_get("islandora_solr_search_block_request_handler", t("standard"));
   $url = variable_get('islandora_solr_search_block_url', 'localhost:8080/solr'); //use the solr client configs
@@ -621,6 +637,12 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL) {
     'qt' => $requestHandler,
     'fl' => 'Title, PID, fgs.lastModifiedDate',
   );
+  if ($set) {
+    $set = escapePhrase("$set");
+    $query .= " AND (rels.isMemberOfCollection:$set OR rels.isMemberOf:$set)";
+    var_dump($query);exit();
+    //$additionalParams['fq'] = "isMemberOfCollection:$set OR isMemberOf:$set";
+  }
   $limit = variable_get('oai2_max_size', '20');
   try {
     $results = $solr->search($query, $start, $limit, $additionalParams);
@@ -792,7 +814,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
   }
 
 
-  $results = islandora_oai_query_solr($token->deliveredrecords, $field, $query);
+  $results = islandora_oai_query_solr($token->deliveredrecords, $field, $query, $set);
   $num_rows = (int) $results->response->numFound;
 
   $output = '';
@@ -888,7 +910,7 @@ function islandora_oai_build_record_response($record, $full_record = FALSE) {
       $didLoadOk = $input->loadXML(utf8_encode($mods));
       if ($didLoadOk) {
         $xslt->importStylesheet($XSL);
-        $mods_stream = $xslt->transformToXml($input);//mods stream could still be empty if there is incorrect namespace so check
+        $mods_stream = $xslt->transformToXml($input); //mods stream could still be empty if there is incorrect namespace so check
         if (!empty($mods_stream)) {
           $output .= '   <metadata>' . "\n";
           $output .= $mods_stream;
@@ -1055,38 +1077,45 @@ function islandora_oai_list_sets($args) {
   module_load_include('inc', 'fedora_repository', 'CollectionClass');
   $collectionClass = new CollectionClass();
   $query_results = $collectionClass->getRelatedItems(NULL, $itql_query);
- 
-  $xml_set = simplexml_load_string ($query_results);
+
+  $xml_set = simplexml_load_string($query_results);
   $list_sets = '';
- 
+
   foreach ($xml_set->results->result as $result) {
     //var_dump($result);exit();
-    $list_sets .= "   <set>\n";
+    $pid_namespaces = array(); // explode(' ',variable_get('fedora_pids_allowed', 'default: demo: changeme: Islandora: ilives: '));
+    foreach (explode(' ', trim(variable_get('fedora_pids_allowed', 'default: demo: changeme: Islandora: ilives: ')))as $namespace) {
+      $pid_namespaces[$namespace] = $namespace;
+    }
     $a = $result->object->attributes();
     $temp = $a['uri'];
     $setspec = substr($temp, strrpos($temp, '/') + 1);
-    //$setspec = $result->object;
-    $setName = $result->title;
-    $list_sets .= islandora_oai_xmlformat($setspec, 'setSpec', '', 4);
-    $list_sets .= islandora_oai_xmlformat($setName, 'setName', '', 4);
-    /* if (isset($val['setDescription']) && $val['setDescription'] != '') {
-      $output .= "    <setDescription>\n";
-      $prefix = 'oai_dc';
-      $output .= metadataHeader($prefix);
-      $output .= xmlrecord($val['setDescription'], 'dc:description', '', 7);
-      $output .=
-      '     </'.$prefix;
-      if (isset($METADATAFORMATS[$prefix]['record_prefix'])) {
-      $output .= ':'.$METADATAFORMATS[$prefix]['record_prefix'];
+    foreach ($pid_namespaces as $key => $namespace) {//limit the spec to the namespaces allowed in our drupal instance
+      if (strpos($setspec, $namespace) === 0) {
+         $list_sets .= "   <set>\n";
+        //$setspec = $result->object;
+        $setName = $result->title;
+        $list_sets .= islandora_oai_xmlformat($setspec, 'setSpec', '', 4);
+        $list_sets .= islandora_oai_xmlformat($setName, 'setName', '', 4);
+        /* if (isset($val['setDescription']) && $val['setDescription'] != '') {//not sure if we need to add oai_dc for this there are many comments on the internet stating that the spec is not clear what is supposed to be returned
+          $output .= "    <setDescription>\n";
+          $prefix = 'oai_dc';
+          $output .= metadataHeader($prefix);
+          $output .= xmlrecord($val['setDescription'], 'dc:description', '', 7);
+          $output .=
+          '     </'.$prefix;
+          if (isset($METADATAFORMATS[$prefix]['record_prefix'])) {
+          $output .= ':'.$METADATAFORMATS[$prefix]['record_prefix'];
+          }
+          $output .= ">\n";
+          $output .= "    </setDescription>\n";
+          } */
+        $list_sets .= "   </set>\n";
       }
-      $output .= ">\n";
-      $output .= "    </setDescription>\n";
-      } */
-    $list_sets .= "   </set>\n";
+    }
   }
 
-  //SETS NOT CURRENTLY IMPLEMENTED
-  //$list_sets = FALSE;
+  
 
   if ($list_sets) {
     $output .= "  <ListSets>\n";
