@@ -578,20 +578,20 @@ function islandora_oai_get_earliest_datetime() {
 
   if (!$earliest_datestamp) {
 
-    //get our content types array
-    $oai_content_types = variable_get('oai2_content_types', array());
 
-    //build an array of just the content types we want to expose for our where clause
-    $query_types = array();
-    foreach ($oai_content_types as $type => $selected) {
-      if ($selected) {
-        $query_types[] = $type;
-      }
-    }
+     $itql_query = 'select $object $date from <#ri>
+                             where $object <info:fedora/fedora-system:def/model#label> $title
+                             and $object <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
+                             and $object <info:fedora/fedora-system:def/view#lastModifiedDate> $date
+                             order by $date desc';
+  module_load_include('inc', 'fedora_repository', 'CollectionClass');
+  $collectionClass = new CollectionClass();
+  $query_results = $collectionClass->getRelatedItems(NULL, $itql_query);
 
-    $result = db_query("SELECT MIN(changed) as date FROM {node} as n  where n.type IN ('" . implode("','", $query_types) . "')");
-    $datestamp = db_fetch_object($result);  //
-    $earliest_datestamp = gmdate("Y-m-d\TH:i:s\Z", $datestamp->date);
+  $xml_set = simplexml_load_string($query_results);
+  $result = $xml_set->results->result[0];
+  $earliest_datestamp = $result->date;
+ 
   }
 
   return $earliest_datestamp;
@@ -770,6 +770,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
     if (isset($query_args) && (!empty($query_args[0]) || !empty($query_args[1]))) {
       $from = $query_args[0];
       $until = $query_args[1];
+      $set = $query_args[2];
     }
   }
   //------- Not resume, new session
@@ -811,6 +812,9 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
       $query_args[] = $until;
       $query .= $until . ']';
     }
+  }
+  if(isset($set)){
+    $query_args[] = $set;
   }
 
 
