@@ -58,6 +58,12 @@ function islandora_oai_schema() {
           'not null' => FALSE,
           'default' => ''
        ),
+      'setargs' => array(
+        'type' => 'varchar',
+        'length' => '64',//length of fedora pid
+        'not null' => FALSE,
+        'default' => ''
+      ),
 	     'metadata_prefix' => array(
          'type' => 'varchar',
          'length' => '255',

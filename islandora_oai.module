@@ -640,7 +640,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   if ($set) {
     $set = escapePhrase("$set");
     $query .= " AND (rels.isMemberOfCollection:$set OR rels.isMemberOf:$set)";
-    var_dump($query);exit();
+    //var_dump($query);exit();
     //$additionalParams['fq'] = "isMemberOfCollection:$set OR isMemberOf:$set";
   }
   $limit = variable_get('oai2_max_size', '20');
@@ -766,11 +766,10 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
       return FALSE;
     }
     $query_args = explode('#', $token->queryargs);
-
+    $set = $token->setargs;
     if (isset($query_args) && (!empty($query_args[0]) || !empty($query_args[1]))) {
       $from = $query_args[0];
       $until = $query_args[1];
-      $set = $query_args[2];
     }
   }
   //------- Not resume, new session
@@ -797,7 +796,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
   $field = 'PID';
   $query = NULL;
   //date stuff will need to implement
-  //this section below does not implement using until and not from but supports from without until. I have to read the spec to see if servers can just specifiy until
+  //this section below does not implement using until and not from but supports from without until. 
   if (isset($from)) {
     $query_args[] = $from;
     $field = 'fgs.lastModifiedDate';
@@ -813,9 +812,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
       $query .= $until . ']';
     }
   }
-  if(isset($set)){
-    $query_args[] = $set;
-  }
+  
 
 
   $results = islandora_oai_query_solr($token->deliveredrecords, $field, $query, $set);
@@ -842,9 +839,9 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
       $token_string = _get_random_token();
       $arg_string = implode("#", $query_args);
       $thendeliveredrecords = (int) $token->deliveredrecords + $max_records;
-      $query_insert = "INSERT INTO {oai2_tokens} (id, deliveredrecords,  queryargs, metadata_prefix, timestamp)
-      VALUES (%d,%d,'%s','%s', %d)";
-      db_query($query_insert, $token_string, $thendeliveredrecords, $arg_string, $metadata_prefix, time());
+      $query_insert = "INSERT INTO {oai2_tokens} (id, deliveredrecords,  queryargs, setargs, metadata_prefix, timestamp)
+      VALUES (%d,%d,'%s', '%s', '%s', %d)";
+      db_query($query_insert, $token_string, $thendeliveredrecords, $arg_string, $set, $metadata_prefix, time());
 
       $token_xml = islandora_oai_get_token_xml($num_rows, $token->deliveredrecords, $expire_time, $token_string);
     }
