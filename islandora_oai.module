@@ -331,6 +331,7 @@ function islandora_oai_get_record($args) {
   foreach ($args as $key => $val) {
     switch ($key) {
       case 'identifier':  // $args content identifier
+        $val = preg_replace('/_/', ':', $val, 1);//replace the first _ with a : so we have a pid
         $id_prefix = variable_get('oai2_repository_identifier', 'drupal-site.org');
         $identifier = str_replace('oai:' . $id_prefix . ':', '', $val);
         break;
@@ -579,19 +580,18 @@ function islandora_oai_get_earliest_datetime() {
   if (!$earliest_datestamp) {
 
 
-     $itql_query = 'select $object $date from <#ri>
+    $itql_query = 'select $object $date from <#ri>
                              where $object <info:fedora/fedora-system:def/model#label> $title
                              and $object <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
                              and $object <info:fedora/fedora-system:def/view#lastModifiedDate> $date
                              order by $date desc';
-  module_load_include('inc', 'fedora_repository', 'CollectionClass');
-  $collectionClass = new CollectionClass();
-  $query_results = $collectionClass->getRelatedItems(NULL, $itql_query);
+    module_load_include('inc', 'fedora_repository', 'CollectionClass');
+    $collectionClass = new CollectionClass();
+    $query_results = $collectionClass->getRelatedItems(NULL, $itql_query);
 
-  $xml_set = simplexml_load_string($query_results);
-  $result = $xml_set->results->result[0];
-  $earliest_datestamp = $result->date;
- 
+    $xml_set = simplexml_load_string($query_results);
+    $result = $xml_set->results->result[0];
+    $earliest_datestamp = $result->date;
   }
 
   return $earliest_datestamp;
@@ -638,10 +638,19 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
     'fl' => 'Title, PID, fgs.lastModifiedDate',
   );
   if ($set) {
-    $set = escapePhrase("$set");
-    $query .= " AND (rels.isMemberOfCollection:$set OR rels.isMemberOf:$set)";
-    //var_dump($query);exit();
-    //$additionalParams['fq'] = "isMemberOfCollection:$set OR isMemberOf:$set";
+    $count = 0;
+    $var = "AND";
+    $sets = explode(':', $set);//oai uses : to separate multiple setSpecs so we had to replace it from the pids earlier
+    foreach ($sets as $s) {
+      if($count++ > 0){
+        $var = 'OR';
+      }
+      $s = preg_replace('/_/', ':', $s, 1); //replace the first occurence of _ with a : so we are back to a valid pid
+      $s = escapePhrase("$s");
+      $query .= " $var (rels.isMemberOfCollection:$s OR rels.isMemberOf:$s)";
+      //var_dump($query);exit();
+      //$additionalParams['fq'] = "isMemberOfCollection:$set OR isMemberOf:$set";
+    }
   }
   $limit = variable_get('oai2_max_size', '20');
   try {
@@ -812,7 +821,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
       $query .= $until . ']';
     }
   }
-  
+
 
 
   $results = islandora_oai_query_solr($token->deliveredrecords, $field, $query, $set);
@@ -871,6 +880,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
 function islandora_oai_build_record_response($record, $full_record = FALSE) {
   //var_dump($record);exi();
   $identifier = $record->PID;
+  $identifier = str_replace(':', '_', $identifier);
   $repo_id = variable_get('oai2_repository_identifier', 'drupal-site.org');
   $lastModifiedDate = 'fgs.lastModifiedDate';
   $datestamp = $record->$lastModifiedDate; //gmdate("Y-m-d\TH:i:s\Z", $record->$lastModifiedDate);
@@ -893,7 +903,7 @@ function islandora_oai_build_record_response($record, $full_record = FALSE) {
   //------- List record values
   if ($full_record) {
     module_load_include('inc', 'fedora_repository', 'api/fedora_item');
-    $object = new Fedora_Item($identifier);
+    $object = new Fedora_Item($record->PID);
     $mods = $object->get_datastream_dissemination('MODS');
     if (empty($mods)) {
       $dc = $object->get_datastream_dissemination('DC');
@@ -1093,10 +1103,10 @@ function islandora_oai_list_sets($args) {
     $setspec = substr($temp, strrpos($temp, '/') + 1);
     foreach ($pid_namespaces as $key => $namespace) {//limit the spec to the namespaces allowed in our drupal instance
       if (strpos($setspec, $namespace) === 0) {
-         $list_sets .= "   <set>\n";
+        $list_sets .= "   <set>\n";
         //$setspec = $result->object;
         $setName = $result->title;
-        $list_sets .= islandora_oai_xmlformat($setspec, 'setSpec', '', 4);
+        $list_sets .= islandora_oai_xmlformat(str_replace(':', '_', $setspec), 'setSpec', '', 4); //replace the pid colon with a _ as : are used as set separators as defined in the oai spec.
         $list_sets .= islandora_oai_xmlformat($setName, 'setName', '', 4);
         /* if (isset($val['setDescription']) && $val['setDescription'] != '') {//not sure if we need to add oai_dc for this there are many comments on the internet stating that the spec is not clear what is supposed to be returned
           $output .= "    <setDescription>\n";
@@ -1116,7 +1126,7 @@ function islandora_oai_list_sets($args) {
     }
   }
 
-  
+
 
   if ($list_sets) {
     $output .= "  <ListSets>\n";
