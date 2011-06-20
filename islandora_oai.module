@@ -621,6 +621,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   $solr = new Apache_Solr_Service($pathParts['host'], $pathParts['port'], $pathParts['path'] . '/');
   if (empty($query)) {
     $query = '*'; //don't want to escape this
+    $field = '*';
   }
   else {
     $query = escapePhrase("$query");
