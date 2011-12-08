@@ -6,6 +6,7 @@
  *
  * */
 
+
 /**
  * Implementation of hook_menu
  * Define menu items and page callbacks.
@@ -630,6 +631,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   $additionalParams = array(
     'qt' => $requestHandler,
     'fl' => 'Title, PID, fgs.lastModifiedDate',
+    'fq' => ' rels.isViewableByUser:anonymous OR (*:* NOT rels.isViewableByRole:* AND NOT rels.isViewableByUser:*)',
   );
   if ($set) {
     $count = 0;
@@ -1049,7 +1051,7 @@ function islandora_oai_list_metadata_formats($args) {
 
 /**
  * List Sets of Repository
- * THIS FEATURE IS NOT CURRENTLY IMPLEMENTED
+ * implemented as a list of collections
  * and is an optional part of the spec
  *
  * @param $args arguments of the Post or Get Request
