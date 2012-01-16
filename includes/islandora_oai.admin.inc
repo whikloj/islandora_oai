@@ -72,6 +72,13 @@ function islandora_oai_settings() {
     '#default_value' => variable_get('oai2_xslt', ''),
     '#description' => 'The XSLT stylesheet for easy browsing the repository without harvester.',
   );
+  $form['oai2_configuration']['oai2_exclude_content_model'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Exclude Content Models'),
+    '#size' => '50',
+    '#default_value' => variable_get('oai2_exclude_content_model', ''),
+    '#description' => 'A query fragment used to exclude content model objects. Example: "NOT rels.hasModel:fedorasystemcontentmodel"',
+  );
   
   //build content type options
  /* $content_type_options = array();

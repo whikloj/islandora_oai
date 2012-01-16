@@ -633,6 +633,10 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
     'fl' => 'Title, PID, fgs.lastModifiedDate',
     'fq' => ' rels.isViewableByUser:anonymous OR (*:* NOT rels.isViewableByRole:* AND NOT rels.isViewableByUser:*)',
   );
+  $excludeContentModel = trim(variable_get('oai2_exclude_content_model'));
+  if (!empty($excludeContentModel)) {
+    $additionalParams['fq'] .= ' AND ' . check_plain($excludeContentModel);
+  }
   if ($set) {
     $count = 0;
     $var = "AND";
