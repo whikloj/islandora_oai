@@ -72,6 +72,13 @@ function islandora_oai_settings() {
     '#default_value' => variable_get('oai2_xslt', ''),
     '#description' => 'The XSLT stylesheet for easy browsing the repository without harvester.',
   );
+  $form['oai2_configuration']['oai2_date_field'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Solr date field'),
+    '#size' => '50',
+    '#default_value' => variable_get('oai2_date_field', 'fgs.lastModifiedDate'),
+    '#description' => 'The date field to use.',
+  );
   
   //build content type options
  /* $content_type_options = array();

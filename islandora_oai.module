@@ -630,7 +630,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   $query = $field . ':' . $query;
   $additionalParams = array(
     'qt' => $requestHandler,
-    'fl' => 'Title, PID, fgs.lastModifiedDate',
+    'fl' => 'Title, PID, ' . variable_get('oai2_date_field', 'fgs.lastModifiedDate'),
     'fq' => ' rels.isViewableByUser:anonymous OR (*:* NOT rels.isViewableByRole:* AND NOT rels.isViewableByUser:*)',
   );
   if ($set) {
@@ -803,7 +803,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
   //this section below does not implement using until and not from but supports from without until. 
   if (isset($from)) {
     $query_args[] = $from;
-    $field = 'fgs.lastModifiedDate';
+    $field = variable_get('oai2_date_field', 'fgs.lastModifiedDate');
     $query = "[$from TO ";
 
     if (isset($until)) {
@@ -877,8 +877,8 @@ function islandora_oai_build_record_response($record, $full_record = FALSE) {
   $identifier = $record->PID;
   $identifier = str_replace(':', '_', $identifier);
   $repo_id = variable_get('oai2_repository_identifier', 'drupal-site.org');
-  $lastModifiedDate = 'fgs.lastModifiedDate';
-  $datestamp = $record->$lastModifiedDate; //gmdate("Y-m-d\TH:i:s\Z", $record->$lastModifiedDate);
+  $lastModifiedDate = variable_get('oai2_date_field', 'fgs.lastModifiedDate');
+  $datestamp = $record->{$lastModifiedDate}; //gmdate("Y-m-d\TH:i:s\Z", $record->$lastModifiedDate);
   $status_deleted = FALSE;
   $output = '';
   if ($full_record) { // list records...
@@ -899,10 +899,14 @@ function islandora_oai_build_record_response($record, $full_record = FALSE) {
   if ($full_record) {
     module_load_include('inc', 'fedora_repository', 'api/fedora_item');
     $object = new Fedora_Item($record->PID);
+    
     $mods = $object->get_datastream_dissemination('MODS');
-    if (empty($mods)) {
-      $dc = $object->get_datastream_dissemination('DC');
-    }
+    $dc = NULL;
+    
+    //XXX:  Might this best be done via some hook (which defines a transform to DC) and weighting method?  
+    //  That way, you could allow different datastreams to be the source for DC, with some kind of priority
+    //  based on the weight...  Or, weight differently based on content model?  Dunno...
+    //We've got MODS, let's try to transform it to DC...
     if (!empty($mods)) {
       //$prefix = 'oai_dc';
       //$result_metadata = db_query("SELECT * FROM {oai2_metadata_formats} WHERE name='%s' ", $prefix);
@@ -913,20 +917,23 @@ function islandora_oai_build_record_response($record, $full_record = FALSE) {
       $file = drupal_get_path('module', 'islandora_oai') . '/xsl/MODS3-22simpleDC.xsl';
       $XSL->load($file);
       $input = new DomDocument();
+      //The utf8_encode seems like it should be unnecessary...  Specify the encoding on the DOMDocument?
       $didLoadOk = $input->loadXML(utf8_encode($mods));
       if ($didLoadOk) {
         $xslt->importStylesheet($XSL);
-        $mods_stream = $xslt->transformToXml($input); //mods stream could still be empty if there is incorrect namespace so check
-        if (!empty($mods_stream)) {
-          $output .= '   <metadata>' . "\n";
-          $output .= $mods_stream;
-          $output .= "</metadata>\n";
-        }
+        $dc = $xslt->transformToXml($input);
       }
     }
-    else if (!empty($dc)) {
+    
+    //No MODS (or it failed transforming); Try to get the DC stream...
+    if (empty($dc)) {
+      $dc = $object->get_datastream_dissemination('DC');
+    }
+    
+    //If we have some DC, throw it it.
+    if (!empty($dc)) {
       $output .= '   <metadata>' . "\n";
-      $output .=$dc;
+      $output .= $dc;
       $output .= "</metadata>\n";
     }
     $output .= '  </record>' . "\n";
