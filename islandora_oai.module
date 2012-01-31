@@ -605,6 +605,35 @@ function escapePhrase($value) {
   return preg_replace($pattern, $replace, $value);
 }
 
+/**
+ * Return the membership info in an array of the form:
+ * array(
+ *   array(field_1, prefix_1),
+ *   array(field_2, prefix_2), ... and so on.
+ * )
+ *
+ * NOTE:  The prefix may be an empty string.
+ *
+ * @return array
+ */
+function _islandora_oai_get_membership_array() {
+  static $mini_cache = array(); //Store in a static variable, to avoid reparsing within the same request.
+  
+  if (empty($mini_cache)) {
+    foreach (preg_split('/(\\r?\\n|\\r)+/', variable_get('oai2_collection_field', 'rels.isMemberOfCollection\nrel.isMemberOf')) as $spec) {
+      $split = preg_split('/[[:space:]]+~[[:space:]]+/', $spec);
+      $split = array_filter($split, 'trim');
+      if (count($split) === 1) {
+        $split[] = '';
+      }
+      
+      $mini_cache[] = $split;
+    }
+    //dd($mini_cache, 'Membership mini cache');
+  }
+  
+  return $mini_cache;
+}
 
 /**
  *
@@ -616,10 +645,10 @@ function escapePhrase($value) {
  */
 function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $set = NULL) {
   module_load_include('php', 'islandora_solr_search', 'Solr/Service');
-  $requestHandler = variable_get("islandora_solr_search_block_request_handler", t("standard"));
+  $requestHandler = variable_get("islandora_solr_search_block_request_handler", "standard");
   $url = variable_get('islandora_solr_search_block_url', 'localhost:8080/solr'); //use the solr client configs
   $pathParts = parse_url($url);
-  $solr = new Apache_Solr_Service($pathParts['host'], $pathParts['port'], $pathParts['path'] . '/');
+  $solr = new Apache_Solr_Service($pathParts['host'], $pathParts['port'], $pathParts['path']);
   if (empty($query)) {
     $query = '*'; //don't want to escape this
     $field = '*';
@@ -628,24 +657,31 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
     $query = escapePhrase("$query");
   }
   $query = $field . ':' . $query;
+  $xacml_role = variable_get('oai2_xacml_role_field', 'rels.isViewableByRole');
+  $xacml_user = variable_get('oai2_xacml_user_field', 'rels.isViewableByUser');
   $additionalParams = array(
     'qt' => $requestHandler,
-    'fl' => 'Title, PID, ' . variable_get('oai2_date_field', 'fgs.lastModifiedDate'),
-    'fq' => ' rels.isViewableByUser:anonymous OR (*:* NOT rels.isViewableByRole:* AND NOT rels.isViewableByUser:*)',
+    'fl' => '*, PID, ' . variable_get('oai2_date_field', 'fgs.lastModifiedDate'),
+    'fq' => array("($xacml_user:anonymous OR (*:* AND -$xacml_role:[* TO *] AND -$xacml_user:[* TO *]))"),
+      /**
+       * Use an array to help Solr caching...  Different FQs are cached separately. 
+       * @see http://wiki.apache.org/solr/CommonQueryParameters#Caching_of_filters
+       */
   );
   if ($set) {
     $count = 0;
-    $var = "AND";
     $sets = explode(':', $set);//oai uses : to separate multiple setSpecs so we had to replace it from the pids earlier
+    $set_fq = array();
     foreach ($sets as $s) {
-      if($count++ > 0){
-        $var = 'OR';
-      }
       $s = preg_replace('/_/', ':', $s, 1); //replace the first occurence of _ with a : so we are back to a valid pid
-      $s = escapePhrase("$s");
-      $query .= " $var (rels.isMemberOfCollection:$s OR rels.isMemberOf:$s)";
-      //$additionalParams['fq'] = "isMemberOfCollection:$set OR isMemberOf:$set";
+      $s = trim($s);
+      foreach (_islandora_oai_get_membership_array() as $spec) {
+        list($s_field, $prefix) = $spec;
+        
+        $set_fq[] = $s_field . ':"' . $prefix . $s . '"';
+      }
     }
+    $additionalParams['fq'][] = '(' . implode(' OR ', $set_fq) . ')';
   }
   $limit = variable_get('oai2_max_size', '20');
   try {
@@ -817,8 +853,6 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
     }
   }
 
-
-
   $results = islandora_oai_query_solr($token->deliveredrecords, $field, $query, $set);
   $num_rows = (int) $results->response->numFound;
 
@@ -850,7 +884,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
       $token_xml = islandora_oai_get_token_xml($num_rows, $token->deliveredrecords, $expire_time, $token_string);
     }
     // Last delivery, return empty ResumptionToken
-    else if (isset($resumption_token)) {
+    elseif (isset($resumption_token)) {
       $token_xml = islandora_oai_get_token_xml($num_rows, $token->deliveredrecords);
     }
 
@@ -888,11 +922,17 @@ function islandora_oai_build_record_response($record, $full_record = FALSE) {
   $output .= '   <header>' . "\n";
   $output .= islandora_oai_xmlformat('oai:' . $repo_id . ':' . $identifier, 'identifier', '', 4);
   $output .= islandora_oai_xmlformat($datestamp, 'datestamp', '', 4);
-  $title = $record->Title;
-  //if (!empty($title)) {
-  //  $setspec = str_replace(" ", "_", strtolower($record->Title));
-  //  $output .= islandora_oai_xmlformat($setspec, 'setSpec', '', 4);
-  //}
+
+  foreach (_islandora_oai_get_membership_array() as $spec) {
+    list($field, $prefix) = $spec;
+    foreach ((array)$record->{$field} as $set) {
+      if (empty($prefix) || (!empty($prefix) && strpos($set, $prefix) === 0)) {
+        $set_spec = substr($set, strlen($prefix));
+        $set_spec = str_replace(':', '_', $set_spec);
+        $output .= islandora_oai_xmlformat($set_spec, 'setSpec', '', 4);
+      }
+    }
+  }
   $output .= '   </header>' . "\n";
 
   //------- List record values
@@ -917,8 +957,8 @@ function islandora_oai_build_record_response($record, $full_record = FALSE) {
       $file = drupal_get_path('module', 'islandora_oai') . '/xsl/MODS3-22simpleDC.xsl';
       $XSL->load($file);
       $input = new DomDocument();
-      //The utf8_encode seems like it should be unnecessary...  Specify the encoding on the DOMDocument?
-      $didLoadOk = $input->loadXML(utf8_encode($mods));
+
+      $didLoadOk = $input->loadXML($mods);
       if ($didLoadOk) {
         $xslt->importStylesheet($XSL);
         $dc = $xslt->transformToXml($input);
@@ -938,7 +978,7 @@ function islandora_oai_build_record_response($record, $full_record = FALSE) {
     }
     $output .= '  </record>' . "\n";
   }
-
+  
   return $output;
 }
 
@@ -999,9 +1039,7 @@ function islandora_oai_get_token($resumption_token) {
  * @return output in XML-Format
  * */
 function islandora_oai_list_metadata_formats($args) {
-
   foreach ($args as $key => $val) {
-
     switch ($key) {
       case 'identifier':
         $repo_id = variable_get('oai2_repository_identifier', 'drupal-site.org');
@@ -1091,7 +1129,7 @@ function islandora_oai_list_sets($args) {
   module_load_include('inc', 'fedora_repository', 'CollectionClass');
   $collectionClass = new CollectionClass();
   $query_results = $collectionClass->getRelatedItems(NULL, $itql_query);
-
+  
   $xml_set = simplexml_load_string($query_results);
   $list_sets = '';
 
