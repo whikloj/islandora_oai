@@ -1103,6 +1103,7 @@ function islandora_oai_list_metadata_formats($args) {
  * @return output in XML-Format
  * */
 function islandora_oai_list_sets($args) {
+  global $user;
 
   foreach ($args as $key => $val) {
 
@@ -1118,14 +1119,35 @@ function islandora_oai_list_sets($args) {
         return FALSE;
     }
   }
-//this query could be modified to if need as long as it returns a pid and a title
+  //this query could be modified to if need as long as it returns a pid and a title
   //if your repository has all collection objects based on one model you could support sets by modifying this query
-  $itql_query = 'select $object $title $content from <#ri>
-                             where ($object <info:fedora/fedora-system:def/model#label> $title
-                             and $object <fedora-model:hasModel> $content
-                             and ($content <fedora-model:hasModel> <info:fedora/islandora:collectionCModel>)
-                             and $object <fedora-model:state> <info:fedora/fedora-system:def/model#Active>)
-                             order by $title';
+  $itql_query = 'select $object $title $model $parent_model $created from <#ri>
+                where
+                ((
+                $object <fedora-model:label> $title
+                and $object <fedora-model:hasModel> $model
+                and $object <fedora-model:createdDate> $created
+                and $model <fedora-model:hasModel> $parent_model
+                and $parent_model <mulgara:is> <info:fedora/islandora:collectionCModel>
+                and $object <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
+                minus $object <http://islandora.ca/ontology/relsext#isViewableByRole> $role
+                minus $object <http://islandora.ca/ontology/relsext#isViewableByUser> $user
+                ) or (
+                $object <fedora-model:label> $title
+                and $object <fedora-model:hasModel> $model
+                and $object <fedora-model:createdDate> $created
+                and $model <fedora-model:hasModel> $parent_model
+                and $parent_model <mulgara:is> <info:fedora/islandora:collectionCModel>
+                and $object <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
+                and (';
+  foreach ($user->roles as $role) {
+    $itql_query .= '$object <http://islandora.ca/ontology/relsext#isViewableByRole> '."'$role' or ";
+  }
+  $itql_query .= '$object <http://islandora.ca/ontology/relsext#isViewableByUser> '."'$user->name'".')';
+  $itql_query .= '))
+                  minus $model <mulgara:is> <info:fedora/fedora-system:FedoraObject-3.0>
+                  minus $parent_model <mulgara:is> <info:fedora/fedora-system:FedoraObject-3.0>
+                  order by $title';
   module_load_include('inc', 'fedora_repository', 'CollectionClass');
   $collectionClass = new CollectionClass();
   $query_results = $collectionClass->getRelatedItems(NULL, $itql_query);
@@ -1166,8 +1188,6 @@ function islandora_oai_list_sets($args) {
       }
     }
   }
-
-
 
   if ($list_sets) {
     $output .= "  <ListSets>\n";
