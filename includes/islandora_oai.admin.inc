@@ -72,7 +72,42 @@ function islandora_oai_settings() {
     '#default_value' => variable_get('oai2_xslt', ''),
     '#description' => 'The XSLT stylesheet for easy browsing the repository without harvester.',
   );
-  
+  $form['oai2_configuration']['oai2_date_field'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Solr date field'),
+    '#size' => '50',
+    '#default_value' => variable_get('oai2_date_field', 'fgs.lastModifiedDate'),
+    '#description' => 'The date field to use.',
+  );
+  $form['oai2_configuration']['oai2_collection_field'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Solr RELS-EXT collection field'),
+    '#size' => '50',
+    '#default_value' => variable_get('oai2_collection_field', "rels.isMemberOfCollection\nrels.isMemberOf"),
+    '#description' => t('Solr fields used to determine if a doc is a member of a collection.  Can also specify a prefix, in the from "field_name ~ prefix".  Ends up with ORing together the list of predicates above into a list like: $field_name:"$prefix$collection_pid"'),
+  );
+  $form['oai2_configuration']['oai2_xacml_role_field'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Solr XACML role field'),
+    '#size' => '50',
+    '#default_value' => variable_get('oai2_xacml_role_field', 'rels.isViewableByRole'),
+    '#description' => 'Field from the RI which is indexed into Solr',
+  );
+  $form['oai2_configuration']['oai2_xacml_user_field'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Solr XACML role field'),
+    '#size' => '50',
+    '#default_value' => variable_get('oai2_xacml_user_field', 'rels.isViewableByUser'),
+    '#description' => 'Field from the RI which is indexed into Solr',
+  );
+  $form['oai2_configuration']['oai2_exclude_content_model'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Exclude Content Models'),
+    '#size' => '50',
+    '#default_value' => variable_get('oai2_exclude_content_model', ''),
+    '#description' => 'A query fragment used to exclude content model objects. Example: "-rels.hasModel:fedorasystemcontentmodel"',
+  );
+
   //build content type options
  /* $content_type_options = array();
   $node_types = node_get_types();
