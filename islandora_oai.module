@@ -668,9 +668,9 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
        * @see http://wiki.apache.org/solr/CommonQueryParameters#Caching_of_filters
        */
   );
-  $excludeContentModel = trim(variable_get('oai2_exclude_content_model'));
+  $excludeContentModel = trim(variable_get('oai2_exclude_content_model', ''));
   if (!empty($excludeContentModel)) {
-    $additionalParams['fq'] .= ' AND ' . check_plain($excludeContentModel);
+    $additionalParams['fq'][] = '(' . check_plain($excludeContentModel) . ')';
   }
   if ($set) {
     $count = 0;
