@@ -15,7 +15,11 @@ function islandora_oai_install(){
             VALUES 
               ('oai_dc','oai_dc','http://www.openarchives.org/OAI/2.0/oai_dc.xsd','http://www.openarchives.org/OAI/2.0/oai_dc/','dc','http://purl.org/dc/elements/1.1/');"
           );
-  
+    db_query("INSERT INTO {oai2_metadata_formats}
+              (`name`,`metadata_prefix`,`schema`,`metadata_namespace`,`record_prefix`,`record_namespace`)
+            VALUES 
+              ('oai_etdms','oai_etdms','http://www.ndltd.org/standards/metadata/etdms/1.0/etdms.xsd','http://www.ndltd.org/standards/metadata/etdms/1.0/','thesis','http://www.ndltd.org/standards/metadata/etdms/1.0/');"
+          );
     
   if (count($result) == count(array_filter($result))) {
     drupal_set_message(t('The oai2 module has successfully added its tables to the database.'));
