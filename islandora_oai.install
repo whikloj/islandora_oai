@@ -7,7 +7,7 @@
 
 /**
  * Implementation of hook_install()
- * */
+ */
 function islandora_oai_install() {
   $result = array();
 
@@ -157,7 +157,7 @@ function islandora_oai_schema() {
 
 /**
  * Implementation of hook_uninstall()
- * */
+ */
 function islandora_oai_uninstall() {
 
   drupal_uninstall_schema('islandora_oai');
