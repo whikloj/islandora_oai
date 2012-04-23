@@ -48,7 +48,7 @@ function islandora_oai_parse_request() {
     unset($args['verb']);
   }
   //allow post requests
-  else if (isset($_POST) && sizeof($_POST) != 0) {
+  elseif (isset($_POST) && sizeof($_POST) != 0) {
     $args = $_POST;
     $verb = $_POST['verb'];
     unset($args['verb']);
@@ -396,15 +396,15 @@ function _islandora_oai_checkDateFormat($date) {
     if (!$granularity) {
       $granularity = 'YYYY-MM-DD';
     }
-    else if ($granularity != 'YYYY-MM-DD') {
+    elseif ($granularity != 'YYYY-MM-DD') {
       return FALSE;
     }
   }
-  else if (preg_match("/^(\d\d\d\d\-\d\d\-\d\d)T(\d\d:\d\d:\d\d)Z$/", $date)) {
+  elseif (preg_match("/^(\d\d\d\d\-\d\d\-\d\d)T(\d\d:\d\d:\d\d)Z$/", $date)) {
     if (!$granularity) {
       $granularity = 'YYYY-MM-DDThh:mm:ssZ';
     }
-    else if ($granularity != 'YYYY-MM-DDThh:mm:ssZ') {
+    elseif ($granularity != 'YYYY-MM-DDThh:mm:ssZ') {
       return FALSE;
     }
   }
@@ -690,7 +690,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   try {
     $results = $solr->search($query, $start, $limit, $additionalParams);
   } catch (Exception $e) {
-    drupal_set_message(t('error searching ') . $e->getMessage());
+    drupal_set_message(t('error searching @message', array('@message' => $e->getMessage())), 'error');
   }
   return $results;
 }
@@ -786,7 +786,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
           islandora_oai_add_error('exclusiveArgument');
           return FALSE;
         }
-        else if (!isset($resumption_token)) {
+        elseif (!isset($resumption_token)) {
           $resumption_token = $val;
         }
         else {
