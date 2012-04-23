@@ -48,7 +48,7 @@ function islandora_oai_parse_request() {
     unset($args['verb']);
   }
   //allow post requests
-  else if (isset($_POST) && sizeof($_POST) != 0) {
+  elseif (isset($_POST) && sizeof($_POST) != 0) {
     $args = $_POST;
     $verb = $_POST['verb'];
     unset($args['verb']);
@@ -366,14 +366,13 @@ function islandora_oai_get_record($args) {
   $results = islandora_oai_query_solr(0, 'PID', $identifier);
   $record = $results->response->docs[0];
 
-
   if (!$record->PID) {
     islandora_oai_add_error('idDoesNotExist', '', $identifier);
     return FALSE;
   }
   //------ Begin present values of this record
   $output .= "  <GetRecord>\n";
-  $output .= islandora_oai_build_record_response($record, TRUE);
+  $output .= islandora_oai_build_record_response($record, TRUE, $metadata_prefix);
   $output .= ' </GetRecord>' . "\n";
 
   return $output;
@@ -397,15 +396,15 @@ function _islandora_oai_checkDateFormat($date) {
     if (!$granularity) {
       $granularity = 'YYYY-MM-DD';
     }
-    else if ($granularity != 'YYYY-MM-DD') {
+    elseif ($granularity != 'YYYY-MM-DD') {
       return FALSE;
     }
   }
-  else if (preg_match("/^(\d\d\d\d\-\d\d\-\d\d)T(\d\d:\d\d:\d\d)Z$/", $date)) {
+  elseif (preg_match("/^(\d\d\d\d\-\d\d\-\d\d)T(\d\d:\d\d:\d\d)Z$/", $date)) {
     if (!$granularity) {
       $granularity = 'YYYY-MM-DDThh:mm:ssZ';
     }
-    else if ($granularity != 'YYYY-MM-DDThh:mm:ssZ') {
+    elseif ($granularity != 'YYYY-MM-DDThh:mm:ssZ') {
       return FALSE;
     }
   }
@@ -691,7 +690,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   try {
     $results = $solr->search($query, $start, $limit, $additionalParams);
   } catch (Exception $e) {
-    drupal_set_message(t('error searching ') . $e->getMessage());
+    drupal_set_message(t('error searching @message', array('@message' => $e->getMessage())), 'error');
   }
   return $results;
 }
@@ -787,7 +786,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
           islandora_oai_add_error('exclusiveArgument');
           return FALSE;
         }
-        else if (!isset($resumption_token)) {
+        elseif (!isset($resumption_token)) {
           $resumption_token = $val;
         }
         else {
@@ -864,7 +863,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
   $response_xml = '';
   //while ($row = db_fetch_object($result)) {
   foreach ($results->response->docs as $doc) {
-    $response_xml .= islandora_oai_build_record_response($doc, $listrec);
+    $response_xml .= islandora_oai_build_record_response($doc, $listrec, $metadata_prefix);
   }
 
   if ($response_xml != '') {
@@ -910,7 +909,7 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
  * understand how to build a record/id response given a solr result 
  *
  * */
-function islandora_oai_build_record_response($record, $full_record = FALSE) {
+function islandora_oai_build_record_response($record, $full_record = FALSE, $metadata_prefix = 'oai_dc') {
   //var_dump($record);exi();
   $identifier = $record->PID;
   $identifier = str_replace(':', '_', $identifier);
@@ -958,7 +957,16 @@ function islandora_oai_build_record_response($record, $full_record = FALSE) {
       //$mods = trim(file_get_contents('/Users/paulpound/Temp Stuff/mods.xml'));
       $xslt = new XSLTProcessor();
       $XSL = new DOMDocument();
+      switch ($metadata_prefix) {
+        case 'oai_dc':
       $file = drupal_get_path('module', 'islandora_oai') . '/xsl/MODS3-22simpleDC.xsl';
+          break;
+        case 'oai_etdms':
+          $file = drupal_get_path('module', 'islandora_oai') . '/xsl/mods_to_etdms.xsl';
+          break;
+        default:
+          $file = drupal_get_path('module', 'islandora_oai') . '/xsl/MODS3-22simpleDC.xsl';
+      }
       $XSL->load($file);
       $input = new DomDocument();
 
