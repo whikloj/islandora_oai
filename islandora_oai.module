@@ -946,7 +946,13 @@ function islandora_oai_build_record_response($record, $full_record = FALSE, $met
     module_load_include('inc', 'fedora_repository', 'api/fedora_item');
     $object = new Fedora_Item($record->PID);
     
-    $mods = $object->get_datastream_dissemination('MODS');
+    if(isset($object->datastreams['MODS'])) {
+      $mods = $object->get_datastream_dissemination('MODS');
+    }
+    else {
+      $mods = NULL;
+    }
+
     $dc = NULL;
     
     //XXX:  Might this best be done via some hook (which defines a transform to DC) and weighting method?  
@@ -981,7 +987,7 @@ function islandora_oai_build_record_response($record, $full_record = FALSE, $met
     }
     
     //No MODS (or it failed transforming); Try to get the DC stream...
-    if (empty($dc)) {
+    if (empty($dc) && isset($object->datastreams['DC'])) {
       $dc = $object->get_datastream_dissemination('DC');
     }
     
