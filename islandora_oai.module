@@ -592,6 +592,7 @@ function islandora_oai_get_earliest_datetime() {
     $xml_set = simplexml_load_string($query_results);
     $result = $xml_set->results->result[0];
     $earliest_datestamp = $result->date;
+    $earliest_datestamp = substr($earliest_datestamp, 0, -5) . 'Z';
   }
 
   return $earliest_datestamp;
@@ -915,7 +916,9 @@ function islandora_oai_build_record_response($record, $full_record = FALSE, $met
   $identifier = str_replace(':', '_', $identifier);
   $repo_id = variable_get('oai2_repository_identifier', 'drupal-site.org');
   $lastModifiedDate = variable_get('oai2_date_field', 'fgs.lastModifiedDate');
-  $datestamp = $record->{$lastModifiedDate}; //gmdate("Y-m-d\TH:i:s\Z", $record->$lastModifiedDate);
+  //$datestamp = $record->{$lastModifiedDate}; //gmdate("Y-m-d\TH:i:s\Z", $record->$lastModifiedDate);
+  $date = new DateTime((string) $record->{$lastModifiedDate},  new DateTimeZone('UTC'));
+  $datestamp = $date->format("Y-m-d\TH:i:s\Z");
   $status_deleted = FALSE;
   $output = '';
   if ($full_record) { // list records...
