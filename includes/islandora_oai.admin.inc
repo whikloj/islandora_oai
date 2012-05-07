@@ -100,45 +100,21 @@ function islandora_oai_settings() {
     '#default_value' => variable_get('oai2_xacml_user_field', 'rels.isViewableByUser'),
     '#description' => 'Field from the RI which is indexed into Solr',
   );
-  $form['oai2_configuration']['oai2_exclude_content_model'] = array(
+  $form['oai2_configuration']['oai2_content_model_field'] = array(
     '#type' => 'textfield',
+    '#title' => t('Solr hasModel field'),
+    '#size' => '50',
+    '#default_value' => variable_get('oai2_content_model_field', 'rels.hasModel'),
+    '#description' => 'Field which indexes the RELS-EXT hasModel relationship',
+  );
+  $form['oai2_configuration']['oai2_exclude_content_models'] = array(
+    '#type' => 'textarea',
     '#title' => t('Exclude Content Models'),
     '#size' => '50',
-    '#default_value' => variable_get('oai2_exclude_content_model', ''),
-    '#description' => 'A query fragment used to exclude content model objects. Example: "-rels.hasModel:fedorasystemcontentmodel"',
+    '#default_value' => variable_get('oai2_exclude_content_models', ''),
+    '#description' => 'By default all objects are included in the harvest. This field will let you exclude all objects with a certain content model. For example to exclude all objects with the islandora collection content model you would use: "islandora:collectionCModel"',
   );
 
-  //build content type options
- /* $content_type_options = array();
-  $node_types = node_get_types();
-  foreach ($node_types as $node_type) {
-    $content_type_options[$node_type->type] = $node_type->name;
-  }
-  $form['oai2_configuration']['oai2_content_types'] = array(
-    '#type' => 'checkboxes',
-    '#title' => t('Content Types to Expose'),
-    '#options' => $content_type_options,      
-    '#default_value' => variable_get('oai2_content_types', array()),
-    '#description' => 'Select content types to expose with OAI2.',
-  );*/
-  
-  /** SETS ARE NOT IMPLEMENTED
-  //build set options - for now this is default + a list of vocabularies
-  $set_options = array('default' => 'default');
-  $result = db_query("SELECT vid,name FROM {vocabulary}");
-  while ($row = db_fetch_object($result)) {
-    $set_options[$row->vid] = $row->name;
-  }  
-  $form['oai2_configuration']['oai2_set'] = array(
-    '#type' => 'select',
-    '#title' => t('Vocabulary to define Sets'),
-    '#options' => $set_options,
-    '#default_value' => variable_get('oai2_set', ''),
-    '#description' => 'Sets will be defined as groups of nodes tagged with each term of this vocabulary.
-                       Default will group sets by content type.'
-  );
-  */
-  
   //---------- Group: Metadata Format Configuration
   $form['oai2_metadata'] = array(
     '#type' => 'fieldset',

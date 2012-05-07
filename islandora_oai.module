@@ -153,7 +153,7 @@ function islandora_oai_respond($xml_response, $args, $compress=TRUE) {
     ob_start('ob_gzhandler');
   }
 
-  header('Content-Type: application/xml');
+  header('Content-Type: text/xml');
 
   echo $xml;
 
@@ -668,9 +668,14 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
        * @see http://wiki.apache.org/solr/CommonQueryParameters#Caching_of_filters
        */
   );
-  $excludeContentModel = trim(variable_get('oai2_exclude_content_model', ''));
-  if (!empty($excludeContentModel)) {
-    $additionalParams['fq'][] = '(' . check_plain($excludeContentModel) . ')';
+  $excludeContentModels = variable_get('oai2_exclude_content_models', '');
+  $excludeContentModels = explode("\n", $excludeContentModels);
+  $hasModel = variable_get('oai2_content_model_field', 'rels.hasModel');
+  foreach($excludeContentModels as $contentModel) {
+    $contentModel = trim($contentModel);
+    if($contentModel) { 
+      $additionalParams['fq'][] = '(-' . $hasModel . ':"' . $contentModel . '")';
+    }
   }
   if ($set) {
     $count = 0;
@@ -693,6 +698,8 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   } catch (Exception $e) {
     drupal_set_message(t('error searching @message', array('@message' => $e->getMessage())), 'error');
   }
+  dd($additionalParams);
+  dd($results);
   return $results;
 }
 
