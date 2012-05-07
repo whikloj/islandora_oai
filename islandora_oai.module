@@ -698,8 +698,6 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   } catch (Exception $e) {
     drupal_set_message(t('error searching @message', array('@message' => $e->getMessage())), 'error');
   }
-  dd($additionalParams);
-  dd($results);
   return $results;
 }
 
