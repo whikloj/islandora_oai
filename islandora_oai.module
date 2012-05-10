@@ -378,11 +378,23 @@ function islandora_oai_get_record($args) {
   return $output;
 }
 
+/** 
+ * Return the granualrity of the date, or false.
+ */
+function _islandora_oai_getDateGranularity($date) {
+  if (preg_match("/^\d\d\d\d\-\d\d\-\d\d$/", $date)) {
+    return 'YYYY-MM-DD';
+  }
+  elseif (preg_match("/^(\d\d\d\d\-\d\d\-\d\d)T(\d\d:\d\d:\d\d)Z$/", $date)) {
+    return 'YYYY-MM-DDThh:mm:ssZ';
+  }
+  else {
+    return FALSE;
+  }
+}
+
 /**
  * Validate the date format (from or until in the request)
- *
- * @todo (maybe) I have removed granularity and message as globals, if we really need them
- * then something should be done about this
  *
  * @param $date datestring
  * @return TRUE or FALSE
@@ -390,23 +402,19 @@ function islandora_oai_get_record($args) {
 function _islandora_oai_checkDateFormat($date) {
 
   static $granularity;
+  $newGranularity = _islandora_oai_getDateGranularity($date);
 
-  //check that granularity is okay, and if it's okay check to make sure it is the same as previous granularities
-  if (preg_match("/^\d\d\d\d\-\d\d\-\d\d$/", $date)) {
-    if (!$granularity) {
-      $granularity = 'YYYY-MM-DD';
-    }
-    elseif ($granularity != 'YYYY-MM-DD') {
+  if(!$newGranularity) {
+    return FALSE;
+  }
+
+  if($granularity) {
+    if($granularity != $newGranularity) {
       return FALSE;
     }
   }
-  elseif (preg_match("/^(\d\d\d\d\-\d\d\-\d\d)T(\d\d:\d\d:\d\d)Z$/", $date)) {
-    if (!$granularity) {
-      $granularity = 'YYYY-MM-DDThh:mm:ssZ';
-    }
-    elseif ($granularity != 'YYYY-MM-DDThh:mm:ssZ') {
-      return FALSE;
-    }
+  else {
+    $granularity = $newGranularity;
   }
 
   //validate date based on granularity
@@ -844,16 +852,17 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
 
   $field = 'PID';
   $query = NULL;
-  //date stuff will need to implement
-  //this section below does not implement using until and not from but supports from without until. 
+
   if (isset($from)) {
-    $query_args[] = $from;
+    $solr_from = _islandora_oai_datetime_to_solr_time($from);
+    $query_args[] = $solr_from;
     $field = variable_get('oai2_date_field', 'fgs.lastModifiedDate');
-    $query = "[$from TO ";
+    $query = "[$solr_from TO ";
 
     if (isset($until)) {
-      $query_args[] = $until;
-      $query .= "$until]";
+      $solr_until = _islandora_oai_datetime_to_solr_time($until);
+      $query_args[] = $solr_until;
+      $query .= "$solr_until]";
     }
     else {
       $until = gmstrftime('%Y-%m-%dT%TZ', time());
@@ -868,8 +877,10 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
   $output = '';
   $response_xml = '';
   //while ($row = db_fetch_object($result)) {
-  foreach ($results->response->docs as $doc) {
-    $response_xml .= islandora_oai_build_record_response($doc, $listrec, $metadata_prefix);
+  if ($num_rows) {
+    foreach ($results->response->docs as $doc) {
+      $response_xml .= islandora_oai_build_record_response($doc, $listrec, $metadata_prefix);
+    }
   }
 
   if ($response_xml != '') {
@@ -1012,10 +1023,24 @@ function islandora_oai_build_record_response($record, $full_record = FALSE, $met
  * knows how to convert datetime dc format to timestmap
  * */
 function _islandora_oai_datetime_to_time($datetime) {
-
   $time = strtotime($datetime);
-
   return $time;
+}
+
+/**
+ * knows how to convert datetime dc format to timestmap
+ * */
+function _islandora_oai_datetime_to_solr_time($datetime) {
+  $granularity = _islandora_oai_getDateGranularity($datetime);
+
+  switch ($granularity) {
+    case 'YYYY-MM-DD':
+      return $datetime . 'T00:00:00Z';
+    break;
+    case 'YYYY-MM-DDThh:mm:ssZ':
+      return $datetime;
+    break;
+  }
 }
 
 /**
