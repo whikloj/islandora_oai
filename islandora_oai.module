@@ -651,7 +651,7 @@ function _islandora_oai_get_membership_array() {
  * @param <type> $set
  * @return <type>
  */
-function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $set = NULL) {
+function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $set = NULL, $date_query = NULL) {
   module_load_include('php', 'islandora_solr_search', 'Solr/Service');
   $requestHandler = variable_get("islandora_solr_search_block_request_handler", "standard");
   $url = variable_get('islandora_solr_search_block_url', 'localhost:8080/solr'); //use the solr client configs
@@ -676,6 +676,9 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
        * @see http://wiki.apache.org/solr/CommonQueryParameters#Caching_of_filters
        */
   );
+  if ($date_query) {
+    $additionalParams['fq'][] = $date_query;
+  }
   $excludeContentModels = variable_get('oai2_exclude_content_models', '');
   $excludeContentModels = explode("\n", $excludeContentModels);
   $hasModel = variable_get('oai2_content_model_field', 'rels.hasModel');
@@ -852,31 +855,33 @@ function islandora_oai_list_id_rec($args, $listrec=FALSE) {
 
   $field = 'PID';
   $query = NULL;
+  $date_query = NULL;
 
-  if (isset($from)) {
-    $solr_from = _islandora_oai_datetime_to_solr_time($from);
-    $query_args[] = $solr_from;
+  if (isset($from) || isset($until)) {
     $field = variable_get('oai2_date_field', 'fgs.lastModifiedDate');
-    $query = "[$solr_from TO ";
 
-    if (isset($until)) {
-      $solr_until = _islandora_oai_datetime_to_solr_time($until);
-      $query_args[] = $solr_until;
-      $query .= "$solr_until]";
+    if(isset($from)) {
+      $solr_from = _islandora_oai_datetime_to_solr_time($from);
     }
     else {
-      $until = gmstrftime('%Y-%m-%dT%TZ', time());
-      $query_args[] = $until;
-      $query .= $until . ']';
+      $solr_from = '*';
     }
+
+    if(isset($until)) {
+      $solr_until = _islandora_oai_datetime_to_solr_time($until);
+    }
+    else {
+      $solr_until = '*';
+    }
+
+    $date_query = "$field:[$solr_from TO $solr_until]";
   }
 
-  $results = islandora_oai_query_solr($token->deliveredrecords, $field, $query, $set);
+  $results = islandora_oai_query_solr($token->deliveredrecords, $field, $query, $set, $date_query);
   $num_rows = (int) $results->response->numFound;
 
   $output = '';
   $response_xml = '';
-  //while ($row = db_fetch_object($result)) {
   if ($num_rows) {
     foreach ($results->response->docs as $doc) {
       $response_xml .= islandora_oai_build_record_response($doc, $listrec, $metadata_prefix);
@@ -1035,7 +1040,7 @@ function _islandora_oai_datetime_to_solr_time($datetime) {
 
   switch ($granularity) {
     case 'YYYY-MM-DD':
-      return $datetime . 'T00:00:00Z';
+      return $datetime . 'T00:00:00Z/DAY';
     break;
     case 'YYYY-MM-DDThh:mm:ssZ':
       return $datetime;
