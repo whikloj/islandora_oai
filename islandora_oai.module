@@ -1133,12 +1133,26 @@ function islandora_oai_list_metadata_formats($args) {
       case 'identifier':
         $repo_id = variable_get('oai2_repository_identifier', 'drupal-site.org');
         $identifier = str_replace('oai:' . $repo_id . ':', '', $val);
-        $result = db_query("SELECT COUNT(nid) FROM {node} n WHERE n.nid=%d", $val);
-        if (!db_result($result)) {
+        
+        $pidquery = str_replace('_', ':', $identifier);
+        $pidquery = 'info:fedora/'. $pidquery;
+        $itql_query = 'select $object $title from <#ri> 
+        where $object <fedora-model:label> $title and $object <mulgara:is><'. $pidquery .'>';
+        
+        module_load_include('inc', 'fedora_repository', 'CollectionClass');
+        $collectionClass = new CollectionClass();
+        $query_results = $collectionClass->getRelatedItems(NULL, $itql_query);
+        $xml_set = simplexml_load_string($query_results);
+                       
+        if ($xml_set->results->result) {
+        $resultpid = (string)$xml_set->results->result->object->attributes()->uri;   
+        }
+        
+        if (!$resultpid == $pidquery) {
           islandora_oai_add_error('idDoesNotExist', 'identifier', $identifier);
           return FALSE;
         }
-
+        
         break;
 
       case 'metadataPrefix':
