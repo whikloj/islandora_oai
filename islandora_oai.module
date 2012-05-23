@@ -715,12 +715,46 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   }
   if ($set) {
     $count = 0;
+    
     $sets = explode(':', $set);//oai uses : to separate multiple setSpecs so we had to replace it from the pids earlier
-    $set_fq = array();
+    $descendants = array();
+    
+    // Get all descendant children (collection and objs) and add to the sets array if not already existing.
+    // Cannot constrain on collections only as name conventions may change across implementations
+    
+    foreach ($sets as $key=>$value) {
+      $value = preg_replace('/_/', ':', $value, 1); //replace the first occurence of _ with a : so we are back to a valid pid
+      $value = trim($value);
+      $sets[$key] = $value;
+            
+      $itql_query = 'select $child from <#ri> where 
+      walk ($parent <fedora-rels-ext:isMemberOfCollection><info:fedora/'. $value . '>
+      and $child <fedora-rels-ext:isMemberOfCollection> $parent) or 
+      walk ($parent <fedora-rels-ext:isMemberOf><info:fedora/'. $value . '> and $child <fedora-rels-ext:isMemberOf> $parent)';
+      
+      module_load_include('inc', 'fedora_repository', 'CollectionClass');
+      $collectionClass = new CollectionClass();
+      $query_results = $collectionClass->getRelatedItems(NULL, $itql_query);
+      $xml_set = simplexml_load_string($query_results);
+   
+            
+      foreach ($xml_set->results->result as $result) {
+        $walkset = $result->child->attributes();
+        $walkset = $walkset['uri'];
+        $walkset = str_replace('info:fedora/', '', $walkset);
+        
+        if (!in_array($walkset, $descendants)) {
+          $descendants[] = $walkset;
+        }
+      }
+   }
+      
+   $sets = array_unique(array_merge($descendants, $sets));
+   
+   $set_fq = array();
+   
     foreach ($sets as $s) {
-      $s = preg_replace('/_/', ':', $s, 1); //replace the first occurence of _ with a : so we are back to a valid pid
-      $s = trim($s);
-      foreach (_islandora_oai_get_membership_array() as $spec) {
+    foreach (_islandora_oai_get_membership_array() as $spec) {
         list($s_field, $prefix) = $spec;
         
         $set_fq[] = $s_field . ':"' . $prefix . $s . '"';
@@ -728,10 +762,11 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
     }
     $additionalParams['fq'][] = '(' . implode(' OR ', $set_fq) . ')';
   }
+
   $limit = variable_get('oai2_max_size', '20');
  
   try {
-    $results = $solr->search($query, $start, $limit, $additionalParams);
+    $results = $solr->search($query, $start, $limit, $additionalParams, $solr::METHOD_POST);
   } catch (Exception $e) {
     drupal_set_message(t('error searching @message', array('@message' => $e->getMessage())), 'error');
   }
@@ -1207,7 +1242,7 @@ function islandora_oai_list_metadata_formats($args) {
  * @return output in XML-Format
  * */
 function islandora_oai_list_sets($args) {
-  global $user;
+   global $user;
   
   foreach ($args as $key => $val) {
 
