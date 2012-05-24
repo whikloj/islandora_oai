@@ -63,13 +63,12 @@ function islandora_oai_parse_request() {
   $arglist = explode('&',($_SERVER['QUERY_STRING']));
   $arglist = (array_count_values($arglist));
   
-  foreach ($arglist as $key => $value)
-  {
-  if ($value > 1) {
-  islandora_oai_add_error('sameArgument');
-  $repeatarg = TRUE;
-  break;
-  }
+  foreach ($arglist as $key => $value) {
+    if ($value > 1) {
+    islandora_oai_add_error('sameArgument');
+    $repeatarg = TRUE;
+    break;
+    }
   }
 
   //switch on verb and dispatch requests
@@ -103,10 +102,8 @@ function islandora_oai_parse_request() {
   } // End switch
   //respond
   }
-  
   islandora_oai_respond($xml_response, $args, $compress);
 }
-
 
 /**
  * knows how to build and output an XML response given the body of the response and the args
@@ -156,11 +153,10 @@ function islandora_oai_respond($xml_response, $args, $compress=TRUE) {
   }
   
   $errorlist = islandora_oai_get_errors();
-  
   $verbname = $_GET['verb'];
    
   if (strpos($errorlist, $verbname) !== FALSE) {
-  $verbname = '';
+    $verbname = '';
   }
   else {
     $verbname = 'verb= "' . $verbname . '"';
@@ -190,7 +186,7 @@ function islandora_oai_respond($xml_response, $args, $compress=TRUE) {
     ob_end_flush();
   }
   
-  }
+}
 
 /**
  * knows how to return the error text of errors added to with islandora_oai_add_error()
@@ -675,7 +671,9 @@ function _islandora_oai_get_membership_array() {
  * @return <type>
  */
 function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $set = NULL, $date_query = NULL) {
-   module_load_include('php', 'islandora_solr_search', 'Solr/Service');
+  global $user;
+  
+  module_load_include('php', 'islandora_solr_search', 'Solr/Service');
   $requestHandler = variable_get("islandora_solr_search_block_request_handler", "standard");
   $url = variable_get('islandora_solr_search_block_url', 'localhost:8080/solr'); //use the solr client configs
   $pathParts = parse_url($url);
@@ -721,7 +719,6 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
     
     // Get all descendant children (collection and objs) and add to the sets array if not already existing.
     // Cannot constrain on collections only as name conventions may change across implementations
-    
     foreach ($sets as $key=>$value) {
       $value = preg_replace('/_/', ':', $value, 1); //replace the first occurence of _ with a : so we are back to a valid pid
       $value = trim($value);
@@ -737,8 +734,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
       $query_results = $collectionClass->getRelatedItems(NULL, $itql_query);
       $xml_set = simplexml_load_string($query_results);
    
-            
-      foreach ($xml_set->results->result as $result) {
+       foreach ($xml_set->results->result as $result) {
         $walkset = $result->child->attributes();
         $walkset = $walkset['uri'];
         $walkset = str_replace('info:fedora/', '', $walkset);
@@ -748,15 +744,58 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
         }
       }
    }
-      
-   $sets = array_unique(array_merge($descendants, $sets));
    
-   $set_fq = array();
+   // Grab all collections in the repository to be used as a comparison
+   $itql_query = 'select $object $title $model $parent_model $created from <#ri>
+                where
+                ((
+                $object <fedora-model:label> $title
+                and $object <fedora-model:hasModel> $model
+                and $object <fedora-model:createdDate> $created
+                and $model <fedora-model:hasModel> $parent_model
+                and $parent_model <mulgara:is> <info:fedora/islandora:collectionCModel>
+                and $object <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
+                minus $object <http://islandora.ca/ontology/relsext#isViewableByRole> $role
+                minus $object <http://islandora.ca/ontology/relsext#isViewableByUser> $user
+                ) or (
+                $object <fedora-model:label> $title
+                and $object <fedora-model:hasModel> $model
+                and $object <fedora-model:createdDate> $created
+                and $model <fedora-model:hasModel> $parent_model
+                and $parent_model <mulgara:is> <info:fedora/islandora:collectionCModel>
+                and $object <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
+                and (';
+  foreach ($user->roles as $role) {
+    $itql_query .= '$object <http://islandora.ca/ontology/relsext#isViewableByRole> '."'$role' or ";
+  }
+  $itql_query .= '$object <http://islandora.ca/ontology/relsext#isViewableByUser> '."'$user->name'".')';
+  $itql_query .= '))
+                  minus $model <mulgara:is> <info:fedora/fedora-system:FedoraObject-3.0>
+                  minus $parent_model <mulgara:is> <info:fedora/fedora-system:FedoraObject-3.0>
+                  order by $title';
+  
+  module_load_include('inc', 'fedora_repository', 'CollectionClass');
+  $collectionClass = new CollectionClass();
+  $query_results = $collectionClass->getRelatedItems(NULL, $itql_query);
+  $xml_set = simplexml_load_string($query_results);
+  $collectionlist = array(); 
+  
+  foreach ($xml_set->results->result as $result) {
+    $collectionobj = $result->object->attributes();
+    $collectionobj = $collectionobj['uri'];
+    $collectionobj = str_replace('info:fedora/', '', $collectionobj);
+    $collectionlist[] = $collectionobj;
+  }  
+  
+  // Take the intersection of the descendants and collections
+  // such that only the descandant collections remain
+  $sets = array_intersect($descendants,$collectionlist);
+  $sets[] = $set;
+  $set_fq = array();
    
-    foreach ($sets as $s) {
+   foreach ($sets as $s) {
     foreach (_islandora_oai_get_membership_array() as $spec) {
         list($s_field, $prefix) = $spec;
-        
         $set_fq[] = $s_field . ':"' . $prefix . $s . '"';
       }
     }
@@ -1020,7 +1059,6 @@ function islandora_oai_build_record_response($record, $full_record = FALSE, $met
     foreach ((array)$record->{$field} as $set) {
         if (empty($prefix) || (!empty($prefix) && strpos($set, $prefix) === 0)) {
         $set_spec = substr($set, strlen($prefix));
-        // Contained in orig needs testing
         $set_spec = str_replace(':', '_', $set_spec);
         $output .= islandora_oai_xmlformat($set_spec, 'setSpec', '', 4);
         }
@@ -1303,7 +1341,7 @@ function islandora_oai_list_sets($args) {
     $a = $result->object->attributes();
     $temp = $a['uri'];
     $setspec = substr($temp, strrpos($temp, '/') + 1);
-    foreach ($pid_namespaces as $key => $namespace) { ////limit the spec to the namespaces allowed in our drupal instance
+    foreach ($pid_namespaces as $key => $namespace) {//limit the spec to the namespaces allowed in our drupal instance
       if (strpos($setspec, $namespace) === 0) {
         $list_sets .= "   <set>\n";
         //$setspec = $result->object;
@@ -1374,7 +1412,7 @@ function islandora_oai_xmlformat($record, $element, $attr = '', $indent = 0) {
   $str = '';
   if (is_array($record)) {
     foreach ($record as $val) {
-    $str .= str_pad('', $indent) . '<' . $element . $attr . '>' . islandora_oai_xmlstr($val, $charset, $xmlescaped) . '</' . $element . ">\n";
+      $str .= str_pad('', $indent) . '<' . $element . $attr . '>' . islandora_oai_xmlstr($val, $charset, $xmlescaped) . '</' . $element . ">\n";
     }
     return $str;
   }
