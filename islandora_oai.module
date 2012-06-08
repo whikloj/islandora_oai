@@ -724,10 +724,16 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
       $value = trim($value);
       $sets[$key] = $value;
             
-      $itql_query = 'select $child from <#ri> where 
-      walk ($parent <fedora-rels-ext:isMemberOfCollection><info:fedora/'. $value . '>
+      $itql_query = 'select $child $model from <#ri> where 
+      (walk ($parent <fedora-rels-ext:isMemberOfCollection><info:fedora/'.$value.'>
       and $child <fedora-rels-ext:isMemberOfCollection> $parent) or 
-      walk ($parent <fedora-rels-ext:isMemberOf><info:fedora/'. $value . '> and $child <fedora-rels-ext:isMemberOf> $parent)';
+      walk ($parent <fedora-rels-ext:isMemberOf><info:fedora/'.$value.'> and $child <fedora-rels-ext:isMemberOf> $parent))
+      and $child <fedora-model:hasModel> $model
+      and $model <fedora-model:hasModel> $parent_model
+      and $parent_model <mulgara:is> <info:fedora/islandora:collectionCModel>
+      and $child <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
+      minus $child <http://islandora.ca/ontology/relsext#isViewableByRole> $role
+      minus $child <http://islandora.ca/ontology/relsext#isViewableByUser> $user';
       
       module_load_include('inc', 'fedora_repository', 'CollectionClass');
       $collectionClass = new CollectionClass();
@@ -744,52 +750,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
         }
       }
    }
-   
-   // Grab all collections in the repository to be used as a comparison
-   $itql_query = 'select $object $title $model $parent_model $created from <#ri>
-                where
-                ((
-                $object <fedora-model:label> $title
-                and $object <fedora-model:hasModel> $model
-                and $object <fedora-model:createdDate> $created
-                and $model <fedora-model:hasModel> $parent_model
-                and $parent_model <mulgara:is> <info:fedora/islandora:collectionCModel>
-                and $object <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
-                minus $object <http://islandora.ca/ontology/relsext#isViewableByRole> $role
-                minus $object <http://islandora.ca/ontology/relsext#isViewableByUser> $user
-                ) or (
-                $object <fedora-model:label> $title
-                and $object <fedora-model:hasModel> $model
-                and $object <fedora-model:createdDate> $created
-                and $model <fedora-model:hasModel> $parent_model
-                and $parent_model <mulgara:is> <info:fedora/islandora:collectionCModel>
-                and $object <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
-                and (';
-  foreach ($user->roles as $role) {
-    $itql_query .= '$object <http://islandora.ca/ontology/relsext#isViewableByRole> '."'$role' or ";
-  }
-  $itql_query .= '$object <http://islandora.ca/ontology/relsext#isViewableByUser> '."'$user->name'".')';
-  $itql_query .= '))
-                  minus $model <mulgara:is> <info:fedora/fedora-system:FedoraObject-3.0>
-                  minus $parent_model <mulgara:is> <info:fedora/fedora-system:FedoraObject-3.0>
-                  order by $title';
-  
-  module_load_include('inc', 'fedora_repository', 'CollectionClass');
-  $collectionClass = new CollectionClass();
-  $query_results = $collectionClass->getRelatedItems(NULL, $itql_query);
-  $xml_set = simplexml_load_string($query_results);
-  $collectionlist = array(); 
-  
-  foreach ($xml_set->results->result as $result) {
-    $collectionobj = $result->object->attributes();
-    $collectionobj = $collectionobj['uri'];
-    $collectionobj = str_replace('info:fedora/', '', $collectionobj);
-    $collectionlist[] = $collectionobj;
-  }  
-  
-  // Take the intersection of the descendants and collections
-  // such that only the descandant collections remain
-  $sets = array_intersect($descendants,$collectionlist);
+  $sets = $descendants;  
   $sets[] = $set;
   $set_fq = array();
    
@@ -809,6 +770,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   } catch (Exception $e) {
     drupal_set_message(t('error searching @message', array('@message' => $e->getMessage())), 'error');
   }
+ 
   return $results;
 }
 
