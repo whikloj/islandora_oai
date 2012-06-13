@@ -3,6 +3,5 @@ description = "This module provides access to the protocol OAI-PMH 2.0 and is ba
 dependencies[] = islandora_solr_search
 version = 6.x-12.2.0-RC1
 core = "6.x"
-project = "fedora_repository"
-package = Fedora Repository
+package = Islandora
 
