@@ -10,7 +10,17 @@
  * Menu callback. Admin setting page for islandora_oai.
  */
 function islandora_oai_settings() {
- 
+ /* $load = module_load_include('inc', 'fedora_repository', 'ContentModel');
+  
+  if ($load === FALSE)
+    echo "FAILED";
+  else
+    echo "LOADED";
+  
+ //$test = new ContentModel();
+ //$test->listDatastreams();
+  
+  //print_r($test);*/
   $base_url = $GLOBALS['base_url'];  
   
   //------------ Group 1: Global Configuration
@@ -120,7 +130,9 @@ function islandora_oai_settings() {
     '#type' => 'fieldset',
     '#title' => t('Metadata Format'),
     '#collapsible' => TRUE,
-    '#collapsed' => TRUE
+    '#collapsed' => TRUE,
+    '#prefix' => '<div id="islandora_oai_test">',
+    '#suffix' => '</div>',
   );
   
   $metadata_format_options = array();
@@ -134,7 +146,11 @@ function islandora_oai_settings() {
     '#title' => t('Metadata Format'),
     '#options' => $metadata_format_options,
     '#default_value' =>  $metadata_format,
-  );
+    '#ahah' => array(
+              'path' => "admin/settings/islandora_oai/select",
+              'wrapper' => 'islandora_oai_test',
+               ),
+    );
   
 
   $result = db_query("SELECT * FROM {oai2_metadata_formats} where name='%s' ", $metadata_format);
@@ -162,6 +178,50 @@ function islandora_oai_settings() {
     '#description' => t('Default for selected metadata format.')
   );
   
+  $form['oai2_metadata']['oai2_metadata_datastream_id_oai_dc'] = array(
+    '#type' => 'textfield',
+    '#size' => 30,
+    '#title' => 'Metadata Datastream ID',
+    '#autocomplete_path' => 'admin/settings/islandora_oai/autocomplete',
+    '#default_value' => variable_get('oai2_metadata_datastream_id_oai_dc', ''),
+  );
+   $form['oai2_metadata']['oai2_metadata_datastream_id_oai_etdms'] = array(
+    '#type' => 'textfield',
+    '#size' => 30,
+    '#title' => 'Metadata Datastream ID',
+    '#autocomplete_path' => 'admin/settings/islandora_oai/autocomplete',
+    '#default_value' => variable_get('oai2_metadata_datastream_id_oai_etdms', ''),
+  );
+  
+   
+  $oai_get_files = module_invoke_all('islandora_oai_get_xsl_files');
+  $transform_options = array('default' => 'No file');
+  $transform_options = array_merge($transform_options, $oai_get_files);
+  
+  $default_transform_dc = variable_get('oai2_transform_file_oai_dc', 'No file');
+  $default_transform_etdms = variable_get('oai2_transform_file_oai_etdms', 'No file');
+   
+  $form['oai2_metadata']['oai2_transform_file_oai_dc'] = array(
+    '#type' => 'select',
+    '#title' => t('File to use for transforming oai_dc'),
+    '#options' => $transform_options,
+    '#default_value' => $default_transform_dc,
+  );
+  $form['oai2_metadata']['oai2_transform_file_oai_etdms'] = array(
+    '#type' => 'select',
+    '#title' => t('File to use for transforming oai_etdms'),
+    '#options' => $transform_options,
+    '#default_value' => $default_transform_etdms,
+  );
+  
+  if ($metadata_prefix == 'oai_dc') {
+    $form['oai2_metadata']['oai2_transform_file_oai_etdms']['#type'] = 'hidden';
+    $form['oai2_metadata']['oai2_metadata_datastream_id_oai_etdms']['#type'] = 'hidden';
+  }
+  else {
+    $form['oai2_metadata']['oai2_transform_file_oai_dc']['#type'] = 'hidden';
+    $form['oai2_metadata']['oai2_metadata_datastream_id_oai_dc']['#type'] = 'hidden';
+  }
   
   /** for each content type selected
    *   - list all fields with a form field for DCMI Metadata Term
@@ -233,4 +293,76 @@ function islandora_oai_settings() {
   }*/
   
   return system_settings_form($form);
+}
+
+
+function islandora_oai_select_js() {
+  // Retrieve the cached form
+  $metadata_format = $_POST['oai2_metadata_format'];
+  $result = db_query("SELECT * FROM {oai2_metadata_formats} where name='%s' ", $metadata_format);
+  
+  $form_state = array('submitted' => FALSE);
+  $form_build_id = $_POST['form_build_id'];
+  $form = form_get_cache($form_build_id, $form_state);
+  
+  while ($row = db_fetch_array($result)) {
+    $metadata_prefix = $row['metadata_prefix'];
+    $metadata_namespace = $row['metadata_namespace'];
+    $schema_location = $row['schema'];
+  }  
+  $form['oai2_metadata']['oai2_metadata_prefix'] = array(
+    '#type' => 'item',
+    '#title' => t('Metadata Prefix'),
+    '#value' =>  $metadata_prefix,
+    '#description' => t('Default for selected metadata format.')
+  );
+  $form['oai2_metadata']['oai2_metadata_namespace'] = array(
+    '#type' => 'item',
+    '#title' => t('Metadata Namespace'),
+    '#value' => $metadata_namespace,
+    '#description' => t('Default for selected metadata format.')
+  );
+  $form['oai2_metadata']['oai2_schema_location'] = array(
+    '#type' => 'item',
+    '#title' => t('Schema Location'),
+    '#value' => $schema_location,
+    '#description' => t('Default for selected metadata format.')
+  );
+  $form['oai2_metadata']['oai2_metadatastream_id']['#value'] = '';
+  if ($metadata_prefix == 'oai_dc') {
+    $form['oai2_metadata']['oai2_transform_file_oai_etdms']['#type'] = 'hidden';
+    $form['oai2_metadata']['oai2_transform_file_oai_dc']['#type'] = 'select';
+    $form['oai2_metadata']['oai2_metadata_datastream_id_oai_etdms']['#type'] = 'hidden';
+    $form['oai2_metadata']['oai2_metadata_datastream_id_oai_dc']['#type'] = 'textfield';
+  }
+  else {
+   $form['oai2_metadata']['oai2_transform_file_oai_dc']['#type'] = 'hidden';
+   $form['oai2_metadata']['oai2_transform_file_oai_etdms']['#type'] = 'select';
+   $form['oai2_metadata']['oai2_metadata_datastream_id_oai_etdms']['#type'] = 'textfield';
+   $form['oai2_metadata']['oai2_metadata_datastream_id_oai_dc']['#type'] = 'hidden';
+  }
+   
+  form_set_cache($form_build_id, $form, $form_state);
+  $form += array('#post' => $_POST, '#programmed' => FALSE);
+  $form = form_builder($_POST['form_id'], $form, $form_state);
+  
+  $form['oai2_metadata']['#collapsed'] = FALSE;
+  drupal_json(array(
+      'status'   => TRUE,
+      'data'     => theme('status_messages') . drupal_render($form['oai2_metadata']),
+    ));
+  
+}
+
+function islandora_oai_autocomplete_js($string) {
+$items = array('hi','bye');
+$output = array();
+
+foreach ($items as $key => $value) {
+  if (strpos($value, $string) !== false) {
+    $output[$value] = check_plain($value);
+  }
+}
+print drupal_to_js($output);
+exit();
 }
