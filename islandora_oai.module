@@ -42,6 +42,13 @@ function islandora_oai_menu() {
     'file' => 'includes/islandora_oai.admin.inc',
     'access arguments' => array('access administration pages'),
   );
+  $items['admin/settings/islandora_oai/upload'] = array(
+    'page callback' => 'islandora_oai_upload_js',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+    'file' => 'includes/islandora_oai.admin.inc',
+    'access arguments' => array('access administration pages'),
+  );
   return $items;
 }
 
@@ -1095,10 +1102,10 @@ function islandora_oai_build_record_response($record, $full_record = FALSE, $met
     $object = new Fedora_Item($record->PID);
     
     if ($metadata_prefix == 'oai_dc') {
-      $param = variable_get('oai2_metadata_datastream_id_oai_dc', '');
+      $param = strtoupper(variable_get('oai2_metadata_datastream_id_oai_dc', 'DC'));
     }
     else {
-      $param = variable_get('oai2_metadata_datastream_id_oai_etdms', '');
+      $param = strtoupper(variable_get('oai2_metadata_datastream_id_oai_etdms', 'DC'));
     }
       
     if(isset($object->datastreams[$param])) {
@@ -1114,10 +1121,10 @@ function islandora_oai_build_record_response($record, $full_record = FALSE, $met
       $XSL = new DOMDocument();
       switch ($metadata_prefix) {
         case 'oai_dc':
-          $file = variable_get('oai2_transform_file_oai_dc', 'No file');
+          $file = variable_get('oai2_transform_file_oai_dc', drupal_get_path('module', 'islandora_oai') . '/xsl/MODS3-22simpleDC.xsl');
           break;
         case 'oai_etdms':
-          $file = variable_get('oai2_transform_file_oai_etdms', 'No file');
+          $file = variable_get('oai2_transform_file_oai_etdms', drupal_get_path('module', 'islandora_oai') . '/xsl/mods_to_etdms.xsl');
           break;
         default:
           $file = drupal_get_path('module', 'islandora_oai') . '/xsl/MODS3-22simpleDC.xsl';
@@ -1132,14 +1139,33 @@ function islandora_oai_build_record_response($record, $full_record = FALSE, $met
           $xslt->importStylesheet($XSL);
           $oai_output = $xslt->transformToXml($input);
         }
+        
+        // Required as transform creates another xml version at the top
+        $oai_output = str_replace('<?xml version="1.0"?>', '', $oai_output);
+      }
+      else {
+        $oai_output = $object->get_datastream_dissemination($param);
       }
     }
     
+    // Transformation fails
     if (empty($oai_output) && isset($object->datastreams[$param])) {
-      $oai_output = $object->get_datastream_dissemination($param);
+      watchdog('islandora_oai', t('The pid %pidname failed to transform on the %datastream datastream with the file %file'),
+        array(
+          '%pidname' => $record->PID,
+          '%file' => $file,
+          '%datastream' => $param,
+          ), WATCHDOG_ERROR);
     }
-   
-    //If we have some DC, throw it it.
+    // Datastream doesn't exist
+    else {
+      watchdog('islandora_oai', t("The pid %pidname failed to transform on the %datastream datastream as the datastream doesn't exist"),
+        array(
+          '%pidname' => $record->PID,
+          '%datastream' => $param,
+          ), WATCHDOG_ERROR);
+    }
+        
     if (!empty($oai_output)) {
       $output .= '   <metadata>' . "\n";
       $output .= $oai_output;

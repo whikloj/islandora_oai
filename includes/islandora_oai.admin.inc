@@ -10,18 +10,12 @@
  * Menu callback. Admin setting page for islandora_oai.
  */
 function islandora_oai_settings() {
- /* $load = module_load_include('inc', 'fedora_repository', 'ContentModel');
-  
-  if ($load === FALSE)
-    echo "FAILED";
-  else
-    echo "LOADED";
-  
- //$test = new ContentModel();
- //$test->listDatastreams();
-  
-  //print_r($test);*/
+  // Needed to fix a jQuery Update bug where file field breaks forms
+  drupal_add_js(drupal_get_path('module', 'islandora_oai') . "/js/fix-jquery-update.js", 'theme');
+       
   $base_url = $GLOBALS['base_url'];  
+  
+  $form['#attributes']['enctype'] = 'multipart/form-data'; 
   
   //------------ Group 1: Global Configuration
   $form['oai2_configuration'] = array(
@@ -131,7 +125,7 @@ function islandora_oai_settings() {
     '#title' => t('Metadata Format'),
     '#collapsible' => TRUE,
     '#collapsed' => TRUE,
-    '#prefix' => '<div id="islandora_oai_test">',
+    '#prefix' => '<div id="islandora_oai">',
     '#suffix' => '</div>',
   );
   
@@ -148,7 +142,7 @@ function islandora_oai_settings() {
     '#default_value' =>  $metadata_format,
     '#ahah' => array(
               'path' => "admin/settings/islandora_oai/select",
-              'wrapper' => 'islandora_oai_test',
+              'wrapper' => 'islandora_oai',
                ),
     );
   
@@ -178,51 +172,93 @@ function islandora_oai_settings() {
     '#description' => t('Default for selected metadata format.')
   );
   
-  $form['oai2_metadata']['oai2_metadata_datastream_id_oai_dc'] = array(
+  $form['oai2_metadata']['oai2_options'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Transformations'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#prefix' => '<div id="islandora_oai_options">',
+    '#suffix' => '</div>',
+  );
+  
+  $form['oai2_metadata']['oai2_options']['oai2_metadata_datastream_id_oai_dc'] = array(
     '#type' => 'textfield',
     '#size' => 30,
     '#title' => 'Metadata Datastream ID',
     '#autocomplete_path' => 'admin/settings/islandora_oai/autocomplete',
-    '#default_value' => variable_get('oai2_metadata_datastream_id_oai_dc', ''),
+    '#default_value' => strtoupper(variable_get('oai2_metadata_datastream_id_oai_dc', 'DC')),
   );
-   $form['oai2_metadata']['oai2_metadata_datastream_id_oai_etdms'] = array(
+    
+   $form['oai2_metadata']['oai2_options']['oai2_metadata_datastream_id_oai_etdms'] = array(
     '#type' => 'textfield',
     '#size' => 30,
     '#title' => 'Metadata Datastream ID',
     '#autocomplete_path' => 'admin/settings/islandora_oai/autocomplete',
-    '#default_value' => variable_get('oai2_metadata_datastream_id_oai_etdms', ''),
+    '#default_value' => strtoupper(variable_get('oai2_metadata_datastream_id_oai_etdms', 'DC')),
   );
-  
+    
+  $oai_invoke_files = module_invoke_all('islandora_oai_get_xsl_files');
    
-  $oai_get_files = module_invoke_all('islandora_oai_get_xsl_files');
-  $transform_options = array('default' => 'No file');
-  $transform_options = array_merge($transform_options, $oai_get_files);
+  $oai_uploaded_files = array();
+  $upload_path = file_create_path("islandora_oai_xsls");
+  $uploaded_files = file_scan_directory($upload_path, '.*\.xslt?$');
   
-  $default_transform_dc = variable_get('oai2_transform_file_oai_dc', 'No file');
-  $default_transform_etdms = variable_get('oai2_transform_file_oai_etdms', 'No file');
-   
-  $form['oai2_metadata']['oai2_transform_file_oai_dc'] = array(
+  foreach ($uploaded_files as $up_file) {
+    $oai_uploaded_files[$up_file->filename] = $up_file->basename;
+  }
+    
+  foreach($oai_uploaded_files as $key => $file) {
+    if (!in_array($file, $oai_invoke_files)) {
+      $oai_invoke_files[$key] = $file;
+    }
+  }
+    
+  $transform_options = array('default' => 'No transformation selected');
+  $transform_options = array_merge($transform_options, $oai_invoke_files);
+  
+  $default_transform_dc = variable_get('oai2_transform_file_oai_dc', drupal_get_path('module', 'islandora_oai') . '/xsl/MODS3-22simpleDC.xsl');
+  $default_transform_etdms = variable_get('oai2_transform_file_oai_etdms', drupal_get_path('module', 'islandora_oai') . '/xsl/mods_to_etdms.xsl');
+  
+  $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_dc'] = array(
     '#type' => 'select',
     '#title' => t('File to use for transforming oai_dc'),
     '#options' => $transform_options,
     '#default_value' => $default_transform_dc,
   );
-  $form['oai2_metadata']['oai2_transform_file_oai_etdms'] = array(
+  $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_etdms'] = array(
     '#type' => 'select',
     '#title' => t('File to use for transforming oai_etdms'),
     '#options' => $transform_options,
     '#default_value' => $default_transform_etdms,
   );
   
+  
+  $form['oai2_metadata']['oai2_options']['oai2_upload_xsl'] = array(
+    '#type' => 'file',
+    '#title_display' => 'invisible',
+    '#title' => t('Upload a XSL or XSLT to be used for transformations'),
+    '#size' => 22,
+  );
+  
+  $form['oai2_metadata']['oai2_options']['oai2_upload_xsl_submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Upload file'),
+    '#ahah' => array(
+              'path' => "admin/settings/islandora_oai/upload",
+              'wrapper' => 'islandora_oai_options',
+              'event' => 'click',
+               ),
+  );
+  
+  
   if ($metadata_prefix == 'oai_dc') {
-    $form['oai2_metadata']['oai2_transform_file_oai_etdms']['#type'] = 'hidden';
-    $form['oai2_metadata']['oai2_metadata_datastream_id_oai_etdms']['#type'] = 'hidden';
+    $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_etdms']['#type'] = 'hidden';
+    $form['oai2_metadata']['oai2_options']['oai2_metadata_datastream_id_oai_etdms']['#type'] = 'hidden';
   }
   else {
-    $form['oai2_metadata']['oai2_transform_file_oai_dc']['#type'] = 'hidden';
-    $form['oai2_metadata']['oai2_metadata_datastream_id_oai_dc']['#type'] = 'hidden';
+    $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_dc']['#type'] = 'hidden';
+    $form['oai2_metadata']['oai2_options']['oai2_metadata_datastream_id_oai_dc']['#type'] = 'hidden';
   }
-  
   /** for each content type selected
    *   - list all fields with a form field for DCMI Metadata Term
    */
@@ -295,7 +331,6 @@ function islandora_oai_settings() {
   return system_settings_form($form);
 }
 
-
 function islandora_oai_select_js() {
   // Retrieve the cached form
   $metadata_format = $_POST['oai2_metadata_format'];
@@ -330,16 +365,16 @@ function islandora_oai_select_js() {
   );
   $form['oai2_metadata']['oai2_metadatastream_id']['#value'] = '';
   if ($metadata_prefix == 'oai_dc') {
-    $form['oai2_metadata']['oai2_transform_file_oai_etdms']['#type'] = 'hidden';
-    $form['oai2_metadata']['oai2_transform_file_oai_dc']['#type'] = 'select';
-    $form['oai2_metadata']['oai2_metadata_datastream_id_oai_etdms']['#type'] = 'hidden';
-    $form['oai2_metadata']['oai2_metadata_datastream_id_oai_dc']['#type'] = 'textfield';
+    $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_etdms']['#type'] = 'hidden';
+    $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_dc']['#type'] = 'select';
+    $form['oai2_metadata']['oai2_options']['oai2_metadata_datastream_id_oai_etdms']['#type'] = 'hidden';
+    $form['oai2_metadata']['oai2_options']['oai2_metadata_datastream_id_oai_dc']['#type'] = 'textfield';
   }
   else {
-   $form['oai2_metadata']['oai2_transform_file_oai_dc']['#type'] = 'hidden';
-   $form['oai2_metadata']['oai2_transform_file_oai_etdms']['#type'] = 'select';
-   $form['oai2_metadata']['oai2_metadata_datastream_id_oai_etdms']['#type'] = 'textfield';
-   $form['oai2_metadata']['oai2_metadata_datastream_id_oai_dc']['#type'] = 'hidden';
+   $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_dc']['#type'] = 'hidden';
+   $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_etdms']['#type'] = 'select';
+   $form['oai2_metadata']['oai2_options']['oai2_metadata_datastream_id_oai_etdms']['#type'] = 'textfield';
+   $form['oai2_metadata']['oai2_options']['oai2_metadata_datastream_id_oai_dc']['#type'] = 'hidden';
   }
    
   form_set_cache($form_build_id, $form, $form_state);
@@ -347,6 +382,7 @@ function islandora_oai_select_js() {
   $form = form_builder($_POST['form_id'], $form, $form_state);
   
   $form['oai2_metadata']['#collapsed'] = FALSE;
+  
   drupal_json(array(
       'status'   => TRUE,
       'data'     => theme('status_messages') . drupal_render($form['oai2_metadata']),
@@ -355,14 +391,63 @@ function islandora_oai_select_js() {
 }
 
 function islandora_oai_autocomplete_js($string) {
-$items = array('hi','bye');
-$output = array();
+  
+  module_load_include('inc', 'fedora_repository', 'ContentModel');
+ 
+  
+  $cm = ContentModel::loadFromObject(variable_get('fedora_repository_pid', 'islandora:root'));
+  $datastreams = $cm->listDatastreams();
+  
+    $oai_autocomplete = array();
 
-foreach ($items as $key => $value) {
-  if (strpos($value, $string) !== false) {
-    $output[$value] = check_plain($value);
+  foreach($datastreams as $key => $value) {
+      $oai_autocomplete[$value] = check_plain($value);
+  }  
+  
+  $output = array();
+  
+  foreach ($oai_autocomplete as $key => $value) {
+    if (strtoupper($string) === substr($value, 0, strlen($string))) {
+      $output[$value] = check_plain($value);
+    }
   }
+  print drupal_to_js($output);
+  exit();
 }
-print drupal_to_js($output);
-exit();
+
+function islandora_oai_upload_js() {
+  $form_build_id = $_POST['form_build_id'];
+  $form = form_get_cache($form_build_id, $form_state);
+  
+  $validators = array( 
+    'file_validate_extensions' => array('xslt xsl'),
+  );
+
+  $upload_path = file_create_path('islandora_oai_xsls');
+  $file = file_save_upload('oai2_upload_xsl', $validators, $upload_path, FILE_EXISTS_ERROR);
+   
+  if ($file != 0) {
+    $options = $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_dc']['#options'];
+
+    file_set_status($file, FILE_STATUS_PERMANENT);
+
+    if (!in_array($file->filename, $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_dc']['#options'])) {
+      $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_dc']['#options'][$file->filepath] = $file->filename;
+      $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_etdms']['#options'][$file->filepath] = $file->filename;
+    }
+  }
+  else {
+    form_set_error('oai2_upload_xsl_submit][oai2_options][oai2_upload_xsl_submit',t('Please select a file to upload'));
+  }  
+  form_set_cache($form_build_id, $form, $form_state);
+  $form += array('#post' => $_POST, '#programmed' => FALSE);
+  $form = form_builder($_POST['form_id'], $form, $form_state);
+  
+  $form['oai2_metadata']['#collapsed'] = FALSE;
+  $form['oai2_metadata']['oai2_options']['#collapsed'] = FALSE;
+  drupal_json(array(
+      'status'   => TRUE,
+      'data'     => theme('status_messages') . drupal_render($form['oai2_metadata']['oai2_options']),
+    ));
+  exit();
 }
