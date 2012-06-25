@@ -185,7 +185,6 @@ function islandora_oai_settings() {
     '#type' => 'textfield',
     '#size' => 30,
     '#title' => 'Metadata Datastream ID',
-    '#autocomplete_path' => 'admin/settings/islandora_oai/autocomplete',
     '#default_value' => strtoupper(variable_get('oai2_metadata_datastream_id_oai_dc', 'DC')),
   );
     
@@ -193,7 +192,6 @@ function islandora_oai_settings() {
     '#type' => 'textfield',
     '#size' => 30,
     '#title' => 'Metadata Datastream ID',
-    '#autocomplete_path' => 'admin/settings/islandora_oai/autocomplete',
     '#default_value' => strtoupper(variable_get('oai2_metadata_datastream_id_oai_etdms', 'DC')),
   );
     
@@ -388,31 +386,6 @@ function islandora_oai_select_js() {
       'data'     => theme('status_messages') . drupal_render($form['oai2_metadata']),
     ));
   
-}
-
-function islandora_oai_autocomplete_js($string) {
-  
-  module_load_include('inc', 'fedora_repository', 'ContentModel');
- 
-  
-  $cm = ContentModel::loadFromObject(variable_get('fedora_repository_pid', 'islandora:root'));
-  $datastreams = $cm->listDatastreams();
-  
-    $oai_autocomplete = array();
-
-  foreach($datastreams as $key => $value) {
-      $oai_autocomplete[$value] = check_plain($value);
-  }  
-  
-  $output = array();
-  
-  foreach ($oai_autocomplete as $key => $value) {
-    if (strtoupper($string) === substr($value, 0, strlen($string))) {
-      $output[$value] = check_plain($value);
-    }
-  }
-  print drupal_to_js($output);
-  exit();
 }
 
 function islandora_oai_upload_js() {
