@@ -146,7 +146,6 @@ function islandora_oai_settings() {
                ),
     );
   
-
   $result = db_query("SELECT * FROM {oai2_metadata_formats} where name='%s' ", $metadata_format);
   while ($row = db_fetch_array($result)) {
     $metadata_prefix = $row['metadata_prefix'];
@@ -185,33 +184,21 @@ function islandora_oai_settings() {
     '#type' => 'textfield',
     '#size' => 30,
     '#title' => 'Metadata Datastream ID',
-    '#default_value' => strtoupper(variable_get('oai2_metadata_datastream_id_oai_dc', 'DC')),
+    '#default_value' => variable_get('oai2_metadata_datastream_id_oai_dc', 'MODS'),
+    '#description' => t('Note that the datastream ID is case sensitive'),
   );
     
    $form['oai2_metadata']['oai2_options']['oai2_metadata_datastream_id_oai_etdms'] = array(
     '#type' => 'textfield',
     '#size' => 30,
     '#title' => 'Metadata Datastream ID',
-    '#default_value' => strtoupper(variable_get('oai2_metadata_datastream_id_oai_etdms', 'DC')),
+    '#default_value' => variable_get('oai2_metadata_datastream_id_oai_etdms', 'MODS'),
+    '#description' => t('Note that the datastream ID is case sensitive'), 
   );
     
   $oai_invoke_files = module_invoke_all('islandora_oai_get_xsl_files');
-   
-  $oai_uploaded_files = array();
-  $upload_path = file_create_path("islandora_oai_xsls");
-  $uploaded_files = file_scan_directory($upload_path, '.*\.xslt?$');
-  
-  foreach ($uploaded_files as $up_file) {
-    $oai_uploaded_files[$up_file->filename] = $up_file->basename;
-  }
-    
-  foreach($oai_uploaded_files as $key => $file) {
-    if (!in_array($file, $oai_invoke_files)) {
-      $oai_invoke_files[$key] = $file;
-    }
-  }
-    
-  $transform_options = array('default' => 'No transformation selected');
+      
+  $transform_options = array('default' => t('No transformation selected'));
   $transform_options = array_merge($transform_options, $oai_invoke_files);
   
   $default_transform_dc = variable_get('oai2_transform_file_oai_dc', drupal_get_path('module', 'islandora_oai') . '/xsl/MODS3-22simpleDC.xsl');
@@ -230,15 +217,21 @@ function islandora_oai_settings() {
     '#default_value' => $default_transform_etdms,
   );
   
+  $form['oai2_metadata']['oai2_options']['upload'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Upload a file'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,  
+  );
   
-  $form['oai2_metadata']['oai2_options']['oai2_upload_xsl'] = array(
+  $form['oai2_metadata']['oai2_options']['upload']['oai2_upload_xsl'] = array(
     '#type' => 'file',
     '#title_display' => 'invisible',
     '#title' => t('Upload a XSL or XSLT to be used for transformations'),
     '#size' => 22,
   );
   
-  $form['oai2_metadata']['oai2_options']['oai2_upload_xsl_submit'] = array(
+  $form['oai2_metadata']['oai2_options']['upload']['oai2_upload_xsl_submit'] = array(
     '#type' => 'submit',
     '#value' => t('Upload file'),
     '#ahah' => array(
@@ -247,8 +240,7 @@ function islandora_oai_settings() {
               'event' => 'click',
                ),
   );
-  
-  
+    
   if ($metadata_prefix == 'oai_dc') {
     $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_etdms']['#type'] = 'hidden';
     $form['oai2_metadata']['oai2_options']['oai2_metadata_datastream_id_oai_etdms']['#type'] = 'hidden';
@@ -329,7 +321,7 @@ function islandora_oai_settings() {
   return system_settings_form($form);
 }
 
-function islandora_oai_select_js() {
+function islandora_oai_select_metadata_prefix_js() {
   // Retrieve the cached form
   $metadata_format = $_POST['oai2_metadata_format'];
   $result = db_query("SELECT * FROM {oai2_metadata_formats} where name='%s' ", $metadata_format);
@@ -389,6 +381,8 @@ function islandora_oai_select_js() {
 }
 
 function islandora_oai_upload_js() {
+  module_load_include('inc', 'fedora_repository', 'MimeClass');
+  
   $form_build_id = $_POST['form_build_id'];
   $form = form_get_cache($form_build_id, $form_state);
   
@@ -398,20 +392,39 @@ function islandora_oai_upload_js() {
 
   $upload_path = file_create_path('islandora_oai_xsls');
   $file = file_save_upload('oai2_upload_xsl', $validators, $upload_path, FILE_EXISTS_ERROR);
-   
-  if ($file != 0) {
-    $options = $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_dc']['#options'];
-
-    file_set_status($file, FILE_STATUS_PERMANENT);
-
-    if (!in_array($file->filename, $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_dc']['#options'])) {
-      $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_dc']['#options'][$file->filepath] = $file->filename;
-      $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_etdms']['#options'][$file->filepath] = $file->filename;
-    }
+  
+  $mimetype = new MimeClass();
+  $mimetype = $mimetype->get_mimetype($file->filename);
+  $extension = substr($file->filename, strpos($file->filename, '.'), strlen($file->filename));
+ 
+  if (($extension != '.xsl' && $extension != '.xslt') || $mimetype!= 'text/xml') {
+    file_delete($upload_path . '/' . $file->filename);
+    form_set_error('oai2_upload_xsl_submit][oai2_options][upload]',t("Upload failed! The file %filename is not a .xsl or .xslt",
+      array(
+        '%filename' => $file->filename,
+      )
+    ));
   }
   else {
-    form_set_error('oai2_upload_xsl_submit][oai2_options][oai2_upload_xsl_submit',t('Please select a file to upload'));
-  }  
+    if ($file != 0) {
+      $options = $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_dc']['#options'];
+
+      file_set_status($file, FILE_STATUS_PERMANENT);
+
+      if (!in_array($file->filename, $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_dc']['#options'])) {
+        $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_dc']['#options'][$file->filepath] = $file->filename;
+        $form['oai2_metadata']['oai2_options']['oai2_transform_file_oai_etdms']['#options'][$file->filepath] = $file->filename;
+        drupal_set_message(t("The file %filename was uploaded successfully", 
+                array(
+                  '%filename' => $file->filename, 
+                )
+            ));
+      }
+    }
+    else {
+      form_set_error('oai2_upload_xsl_submit][oai2_options][upload][oai2_upload_xsl_submit',t('Please select a file to upload'));
+    } 
+  }
   form_set_cache($form_build_id, $form, $form_state);
   $form += array('#post' => $_POST, '#programmed' => FALSE);
   $form = form_builder($_POST['form_id'], $form, $form_state);
