@@ -1095,10 +1095,10 @@ function islandora_oai_build_record_response($record, $full_record = FALSE, $met
     $object = new Fedora_Item($record->PID);
     
     if ($metadata_prefix == 'oai_dc') {
-      $param = variable_get('oai2_metadata_datastream_id_oai_dc', 'DC');
+      $param = variable_get('oai2_metadata_datastream_id_oai_dc', 'MODS');
     }
     else {
-      $param = variable_get('oai2_metadata_datastream_id_oai_etdms', 'DC');
+      $param = variable_get('oai2_metadata_datastream_id_oai_etdms', 'MODS');
     }
       
     if(isset($object->datastreams[$param])) {
