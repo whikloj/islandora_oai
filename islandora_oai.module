@@ -103,7 +103,7 @@ function islandora_oai_parse_request() {
   }
   $writer->text($request_url);
   $writer->endElement();
-  dd($args);
+
   //switch on verb and dispatch requests
   if (!$repeat_arg) {
     switch ($verb) {
@@ -1000,7 +1000,6 @@ function islandora_oai_build_record_response(&$writer, $record, $full_record = F
       }
       if ($file != 'default') {
         $XSL->load($file);
-        dd($file);
         $input = new DomDocument();
 
         $did_load_ok = $input->loadXML($content);
@@ -1008,7 +1007,6 @@ function islandora_oai_build_record_response(&$writer, $record, $full_record = F
         if ($did_load_ok) {
           $xslt->importStylesheet($XSL);
           $oai_output = $xslt->transformToXml($input);
-          dd($oai_output);
         }
       }
       else {
