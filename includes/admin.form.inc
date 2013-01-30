@@ -125,9 +125,6 @@ function islandora_oai_settings($form, $form_state) {
     else {
       $oai2_options_collapsed = FALSE;
 
-
-      dsm('upload pressed');
-
       $validators = array(
         'file_validate_extensions' => array('xslt', 'xsl'),
       );

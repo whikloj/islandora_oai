@@ -15,7 +15,7 @@ function islandora_oai_menu() {
   $items = array();
 
   $items['admin/islandora/islandora-oai'] = array(
-    'title' => 'Islandora OAI Configuration',
+    'title' => 'Islandora OAI',
     'description' => 'Configure the Islandora OAI module',
     'file' => 'includes/admin.form.inc',
     'page callback' => 'drupal_get_form',
@@ -91,44 +91,41 @@ function islandora_oai_parse_request() {
     $request_url = $base_url;
   }
 
-  $verb_name = $_GET['verb'];
-
-  if (strpos($error_list, $verb_name) !== FALSE) {
-    $verb_name = '';
-  }
-  else {
-    $verb_name = 'verb="' . $verb_name . '"';
-  }
   header('Content-Type: text/xml');
   // Add the request
   $writer->startElement('request');
-  $writer->writeAttribute('verb', $verb);
+
+  // Check to see if we have a bad verb
+  $error_list = islandora_oai_get_errors();
+
+  if (!count($error_list)) {
+    $writer->writeAttribute('verb', $verb);
+  }
   $writer->text($request_url);
   $writer->endElement();
-
+  dd($args);
   //switch on verb and dispatch requests
   if (!$repeat_arg) {
-    $xml_response = '';
     switch ($verb) {
 
       case 'GetRecord':
-        $xml_response .= islandora_oai_get_record($writer, $args);
+        islandora_oai_get_record($writer, $args);
         break;
       case 'Identify':
         $compress = FALSE;
-        $xml_response .= islandora_oai_identify($writer, $args);
+        islandora_oai_identify($writer, $args);
         break;
       case 'ListIdentifiers':
-        $xml_response .= islandora_oai_list_id_rec($writer, $args);
+        islandora_oai_list_id_rec($writer, $args);
         break;
       case 'ListMetadataFormats':
-        $xml_response .= islandora_oai_list_metadata_formats($writer, $args);
+        islandora_oai_list_metadata_formats($writer, $args);
         break;
       case 'ListRecords':
-        $xml_response .= islandora_oai_list_id_rec($writer, $args, TRUE);
+        islandora_oai_list_id_rec($writer, $args, TRUE);
         break;
       case 'ListSets':
-        $xml_response .= islandora_oai_list_sets($writer, $args);
+        islandora_oai_list_sets($writer, $args);
         break;
       case '':
         islandora_oai_add_error('noVerb');
@@ -138,10 +135,11 @@ function islandora_oai_parse_request() {
     }
   }
 
+  // Grab errors again for output.
   $error_list = islandora_oai_get_errors();
 
   //get all errors and add them to the response
-  if ($error_list) {
+  if (count($error_list)) {
     foreach ($error_list as $code => $verb) {
        $writer->startElement('error');
        $writer->writeAttribute('code', $code);
@@ -149,7 +147,6 @@ function islandora_oai_parse_request() {
        $writer->endElement();
     }
   }
-
   $writer->endDocument();
   $writer->flush();
 }
@@ -311,11 +308,11 @@ function islandora_oai_cron() {
 /**
  * Retrieve an individual metadata record from a repository
  *
+ * @param $writer
+ *   The XMLWriter object being passed by reference for constructing our output.
+ *
  * @param $args
  *   Argument of the $_POST or $_GET request.
- *
- * @return
- *   Output in XML Format.
  */
 function islandora_oai_get_record(&$writer, $args) {
   foreach ($args as $key => $val) {
@@ -324,7 +321,7 @@ function islandora_oai_get_record(&$writer, $args) {
         // Replace the first _ with a : so we have a pid
         $val = preg_replace('/_/', ':', $val, 1);
         // Strip off the the prefix such that we are left with a Fedora pid.
-        $id_prefix = variable_get('oai2_repository_identifier', 'drupal-site.org');
+        $id_prefix = trim(variable_get('oai2_repository_identifier', 'drupal-site.org'));
         $identifier = str_replace('oai:' . $id_prefix . ':', '', $val);
         break;
 
@@ -363,7 +360,7 @@ function islandora_oai_get_record(&$writer, $args) {
   }
 
   $writer->startElement('GetRecord');
-  $output .= islandora_oai_build_record_response($writer, $record, TRUE, $metadata_prefix);
+  islandora_oai_build_record_response($writer, $record, TRUE, $metadata_prefix);
   $writer->endElement();
 }
 
@@ -441,11 +438,12 @@ function _get_random_token() {
 /**
  * Provides the repository identity information
  *
+ * @param $writer
+ *   The XMLWriter object being passed by reference for constructing our output.
+ *
  * @param $args
  *   Argument of the $_POST or $_GET request.
  *
- *  @return $output
- *    XML structured output
  */
 function islandora_oai_identify(&$writer, $args) {
   global $base_url;
@@ -481,9 +479,9 @@ function islandora_oai_identify(&$writer, $args) {
   $writer->writeAttribute('xsi:schemaLocation', 'http://www.openarchives.org/OAI/2.0/oai-identifier
     http://www.openarchives.org/OAI/2.0/oai-identifier.xsd');
   $writer->writeElement('scheme', 'oai');
-  $writer->writeElement('repositoryIdentifier', variable_get('oai2_repository_identifier', 'drupal-site.org'));
+  $writer->writeElement('repositoryIdentifier', trim(variable_get('oai2_repository_identifier', 'drupal-site.org')));
   $writer->writeElement('delimiter', ':');
-  $writer->writeElement('sampleIdentifier', 'oai:' . variable_get('oai2_repository_identifier', 'drupal-site.org') . ':123');
+  $writer->writeElement('sampleIdentifier', 'oai:' . trim(variable_get('oai2_repository_identifier', 'drupal-site.org') . ':123'));
   $writer->endElement();
   $writer->endElement();
 }
@@ -705,13 +703,15 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
 /**
  * Lists Identifiers or Records based on the value of $list_rec
  *
+ * @param $writer
+ *   The XMLWriter object being passed by reference for constructing our output.
+ *
  * @param $args arguments of the Post or Get Request
  *
  * @param $list_rec
  *   if FALSE (or not supplied) function will list identifiers
  *   if TRUE function will list records
- * @return output in XML-Format
- * */
+ */
 function islandora_oai_list_id_rec(&$writer, $args, $list_rec=FALSE) {
   $query_args = array();
   $max_records = variable_get('oai2_max_size', '20'); //max records to send in one response
@@ -871,17 +871,13 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec=FALSE) {
 
   $num_rows = $results->response->numFound;
 
-  $output = '';
-  $response_xml = '';
-
-  if ($list_rec) {
-    $writer->startElement('ListRecords');
-  }
-  else {
-    $writer->startElement('ListIdentifiers');
-  }
-
   if ($num_rows) {
+    if ($list_rec) {
+      $writer->startElement('ListRecords');
+    }
+    else {
+      $writer->startElement('ListIdentifiers');
+    }
     foreach ($results->response->docs as $doc) {
       islandora_oai_build_record_response($writer, $doc, $list_rec, $metadata_prefix);
     }
@@ -913,21 +909,26 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec=FALSE) {
     }
     $writer->endElement();
   }
-  //
   else {
     islandora_oai_add_error('noRecordsMatch');
     return FALSE;
   }
-  return $output;
 }
 
 /**
  * Build a record response given a solr record.
  *
+ * @param $writer
+ *   The XMLWriter object being passed by reference for constructing our output.
+ *
  * @param type $record
- * @param type $full_record
- * @param type $metadata_prefix
- * @return string
+ *   Solr response record.
+ *
+ * @param boolean $full_record
+ *   Whether to display one record or not.
+ *
+ * @param string $metadata_prefix
+ *   The metadata prefix we are searching for.
  */
 function islandora_oai_build_record_response(&$writer, $record, $full_record = FALSE, $metadata_prefix = 'oai_dc') {
   $identifier = $record->PID;
@@ -943,7 +944,7 @@ function islandora_oai_build_record_response(&$writer, $record, $full_record = F
   }
 
   $writer->startElement('header');
-  $writer->writeElement('identifier', 'oai: ' . $repo_id . ':' . $identifier);
+  $writer->writeElement('identifier', 'oai:' . $repo_id . ':' . $identifier);
   $writer->writeElement('datestamp', $date_stamp);
 
   foreach (_islandora_oai_get_membership_array() as $spec) {
@@ -989,16 +990,17 @@ function islandora_oai_build_record_response(&$writer, $record, $full_record = F
       $XSL = new DOMDocument();
       switch ($metadata_prefix) {
         case 'oai_dc':
-          $file = variable_get('oai2_transform_file_oai_dc', drupal_get_path('module', 'islandora_oai') . '/xsl/MODS3-22simpleDC.xsl');
+          $file = variable_get('oai2_transform_file_oai_dc', drupal_get_path('module', 'islandora_oai') . '/transforms/mods_to_dc_oai.xsl');
           break;
         case 'oai_etdms':
-          $file = variable_get('oai2_transform_file_oai_etdms', drupal_get_path('module', 'islandora_oai') . '/xsl/mods_to_etdms.xsl');
+          $file = variable_get('oai2_transform_file_oai_etdms', drupal_get_path('module', 'islandora_oai') . '/transforms/mods_to_etdms.xsl');
           break;
         default:
-          $file = drupal_get_path('module', 'islandora_oai') . '/xsl/MODS3-22simpleDC.xsl';
+          $file = drupal_get_path('module', 'islandora_oai') . '/transforms/mods_to_dc_oai.xsl';
       }
       if ($file != 'default') {
         $XSL->load($file);
+        dd($file);
         $input = new DomDocument();
 
         $did_load_ok = $input->loadXML($content);
@@ -1006,6 +1008,7 @@ function islandora_oai_build_record_response(&$writer, $record, $full_record = F
         if ($did_load_ok) {
           $xslt->importStylesheet($XSL);
           $oai_output = $xslt->transformToXml($input);
+          dd($oai_output);
         }
       }
       else {
@@ -1098,8 +1101,9 @@ function islandora_oai_write_token_xml($writer, $num_rows, $delivered_records, $
  * Retrieves a resumption token from the db.
  *
  * @param string $resumption_token
+ *
  * @return
- *    Return the token XML. If it does not exist return FALSE.
+ *    Return the token string. If it does not exist return FALSE.
  */
 function islandora_oai_get_token($resumption_token) {
 
@@ -1117,16 +1121,17 @@ function islandora_oai_get_token($resumption_token) {
 /**
  * List all the Metadata formats of this repository.
  *
- * @para $args
+ * @param $writer
+ *   The XMLWriter object being passed by reference for constructing our output.
+ *
+ * @param $args
  *   Arguments of the $_GET or $_POST request.
- * @return $output
- *   Output in XML format.
  */
 function islandora_oai_list_metadata_formats(&$writer, $args) {
   foreach ($args as $key => $val) {
     switch ($key) {
       case 'identifier':
-        $repo_id = variable_get('oai2_repository_identifier', 'drupal-site.org');
+        $repo_id = trim(variable_get('oai2_repository_identifier', 'drupal-site.org'));
         $identifier = str_replace('oai:' . $repo_id . ':', '', $val);
 
         $pid_query = str_replace('_', ':', $identifier);
@@ -1196,10 +1201,11 @@ function islandora_oai_list_metadata_formats(&$writer, $args) {
 /**
  * ListSets of this repository implemented as a list of collections.
  *
+ * @param $writer
+ *   The XMLWriter object being passed by reference for constructing our output.
+ *
  * @param $args
  *   Arguments of the $_POST or the $_GET request.
- * @return $output
- *   Output in XML format.
  */
 function islandora_oai_list_sets($writer, $args) {
   global $user;
@@ -1315,7 +1321,7 @@ function islandora_oai_list_sets($writer, $args) {
  * @return array
  */
 function islandora_oai_islandora_oai_get_xsl_files() {
-  $files = file_scan_directory(drupal_get_path('module', 'islandora_oai') . '/xsl/', '/.*\.xslt?$/');
+  $files = file_scan_directory(drupal_get_path('module', 'islandora_oai') . '/transforms/', '/.*\.xslt?$/');
 
   $transform_options = array();
 
@@ -1338,3 +1344,4 @@ function islandora_oai_islandora_oai_get_xsl_files() {
   }
   return $transform_options;
 }
+
