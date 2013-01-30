@@ -35,9 +35,20 @@ function islandora_oai_menu() {
  * Parses the URL and calls the appropriate function to handle the request
  */
 function islandora_oai_parse_request() {
-
+  global $base_url;
   //set compression = TRUE
   $compress = TRUE;
+
+  // Instansiate a new XML Writer object we will pass around
+  $writer = new XMLWriter();
+  $writer->openURI('php://output');
+  $writer->startDocument('1.0', 'utf-8');
+  $writer->startElement('OAI-PMH');
+  $writer->writeAttribute('xmlns', 'http://www.openarchives.org/OAI/2.0/');
+  $writer->writeAttribute('xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance');
+  $writer->writeAttribute('xsi:schemaLocation', 'http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd');
+  $response_date = gmstrftime('%Y-%m-%dT%H:%M:%SZ');
+  $writer->writeElement('responseDate', $response_date);
 
   //arguments are all GET arguments except for Drupal's q
   if (isset($_GET) && sizeof($_GET) != 1) {
@@ -72,79 +83,6 @@ function islandora_oai_parse_request() {
     }
   }
 
-  //switch on verb and dispatch requests
-  if (!$repeat_arg) {
-    $xml_response = '';
-    switch ($verb) {
-
-      case 'GetRecord':
-        $xml_response .= islandora_oai_get_record($args);
-        break;
-      case 'Identify':
-        $compress = FALSE;
-        $xml_response .= islandora_oai_identify($args);
-        break;
-      case 'ListIdentifiers':
-        $xml_response .= islandora_oai_list_id_rec($args);
-        break;
-      case 'ListMetadataFormats':
-        $xml_response .= islandora_oai_list_metadata_formats($args);
-        break;
-      case 'ListRecords':
-        $xml_response .= islandora_oai_list_id_rec($args, TRUE);
-        break;
-      case 'ListSets':
-        $xml_response .= islandora_oai_list_sets($args);
-        break;
-      case '':
-        islandora_oai_add_error('noVerb');
-        break;
-      default:
-        islandora_oai_add_error('badVerb', $verb);
-    } // End switch
-  }
-  islandora_oai_respond($xml_response, $args, $compress);
-}
-
-/**
- * Builds and outputs an XML response given the body of the response and the args.
- *
- * @param $xml_response string
- *   body of the xml_response
- * @param $args array
- *   arguments
- * @param $compress BOOL
- *   are we sending a compressed response?
- * */
-function islandora_oai_respond($xml_response, $args, $compress = TRUE) {
-  global $base_url;
-
-  $xslt = variable_get('oai2_xslt', '');
-
-  //------ Build XML Definition
-  $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-
-  if ($xslt && file_exists($xslt)) {
-    $xml .= '<?xml-stylesheet type=\'text/xsl\' href=\'' . $xslt . '\' ?>' . "\n";
-  }
-
-  $xml .= '<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/
-  http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">' . "\n";
-
-  $response_date = gmstrftime('%Y-%m-%dT%H:%M:%SZ');
-
-  $xml .= ' <responseDate>' . $response_date . "</responseDate>\n";
-
-  // Generate XML content
-  $req_attr = '';
-  if (is_array($args)) {
-    foreach ($args as $key => $val) {
-      $req_attr .= ' ' . $key . '="' . htmlspecialchars(stripslashes($val)) . '"';
-    }
-  }
-
   //set request url
   if (isset($_GET['q'])) {
     $request_url = $base_url . '/' . $_GET['q'];
@@ -153,41 +91,69 @@ function islandora_oai_respond($xml_response, $args, $compress = TRUE) {
     $request_url = $base_url;
   }
 
-  $error_list = islandora_oai_get_errors();
   $verb_name = $_GET['verb'];
 
   if (strpos($error_list, $verb_name) !== FALSE) {
     $verb_name = '';
   }
   else {
-    $verb_name = 'verb= "' . $verb_name . '"';
+    $verb_name = 'verb="' . $verb_name . '"';
+  }
+  header('Content-Type: text/xml');
+  // Add the request
+  $writer->startElement('request');
+  $writer->writeAttribute('verb', $verb);
+  $writer->text($request_url);
+  $writer->endElement();
+
+  //switch on verb and dispatch requests
+  if (!$repeat_arg) {
+    $xml_response = '';
+    switch ($verb) {
+
+      case 'GetRecord':
+        $xml_response .= islandora_oai_get_record($writer, $args);
+        break;
+      case 'Identify':
+        $compress = FALSE;
+        $xml_response .= islandora_oai_identify($writer, $args);
+        break;
+      case 'ListIdentifiers':
+        $xml_response .= islandora_oai_list_id_rec($writer, $args);
+        break;
+      case 'ListMetadataFormats':
+        $xml_response .= islandora_oai_list_metadata_formats($writer, $args);
+        break;
+      case 'ListRecords':
+        $xml_response .= islandora_oai_list_id_rec($writer, $args, TRUE);
+        break;
+      case 'ListSets':
+        $xml_response .= islandora_oai_list_sets($writer, $args);
+        break;
+      case '':
+        islandora_oai_add_error('noVerb');
+        break;
+      default:
+        islandora_oai_add_error('badVerb', $verb);
+    }
   }
 
-  $xml .= ' <request ' . $verb_name . '>' . $request_url . "</request>\n";
-  $xml .= $xml_response;
+  $error_list = islandora_oai_get_errors();
 
   //get all errors and add them to the response
   if ($error_list) {
-    $xml .= $error_list;
+    foreach ($error_list as $code => $verb) {
+       $writer->startElement('error');
+       $writer->writeAttribute('code', $code);
+       $writer->text($verb);
+       $writer->endElement();
+    }
   }
 
-  $xml .= "</OAI-PMH>\n";
-
-  //output XML response
-  // we never use compression with errors
-  if ($compress && !$error_list) {
-    ob_start('ob_gzhandler');
-  }
-
-  header('Content-Type: text/xml');
-
-  echo $xml;
-
-  if ($compress && !$error_list) {
-    ob_end_flush();
-  }
-
+  $writer->endDocument();
+  $writer->flush();
 }
+
 /**
  * Returns errors generated during an OAI request.
  *
@@ -196,13 +162,12 @@ function islandora_oai_respond($xml_response, $args, $compress = TRUE) {
 function islandora_oai_get_errors() {
   //get the errors array and convert it to a string
   $errors = islandora_oai_add_error('get');
-  $error_text = implode('', $errors);
 
   //return false if no errors
-  if ($error_text == '') {
+  if (!count($errors)) {
     return FALSE;
   }
-  return $error_text;
+  return $errors;
 }
 
 /**
@@ -331,9 +296,7 @@ function islandora_oai_errors($code, $argument='', $value='') {
       $text = t("Unknown error: code: '@code', argument: '@argument', value: '@value'", array('@code' => $code, '@argument' => $argument, '@value' => $value));
       $code = 'badArgument';
   }
-
-  $error = ' <error code="' . islandora_oai_xmlstr($code, 'iso8859-1', FALSE) . '">' . islandora_oai_xmlstr($text, 'iso8859-1', FALSE) . "</error>\n";
-  $errors[] = $error;
+  $errors[$code] = $text;
 }
 
 /**
@@ -354,7 +317,7 @@ function islandora_oai_cron() {
  * @return
  *   Output in XML Format.
  */
-function islandora_oai_get_record($args) {
+function islandora_oai_get_record(&$writer, $args) {
   foreach ($args as $key => $val) {
     switch ($key) {
       case 'identifier':
@@ -398,14 +361,10 @@ function islandora_oai_get_record($args) {
     islandora_oai_add_error('idDoesNotExist', '', $identifier);
     return FALSE;
   }
-  // Begin to build the output of the OAI request
-  // @TODO: Not do this in string form.
-  $output = '';
-  $output .= "  <GetRecord>\n";
-  $output .= islandora_oai_build_record_response($record, TRUE, $metadata_prefix);
-  $output .= ' </GetRecord>' . "\n";
 
-  return $output;
+  $writer->startElement('GetRecord');
+  $output .= islandora_oai_build_record_response($writer, $record, TRUE, $metadata_prefix);
+  $writer->endElement();
 }
 
 /**
@@ -488,54 +447,45 @@ function _get_random_token() {
  *  @return $output
  *    XML structured output
  */
-function islandora_oai_identify($args) {
+function islandora_oai_identify(&$writer, $args) {
   global $base_url;
 
   $error_text = islandora_oai_get_errors();
 
   // Catch for a bad argument.
-  if (!$error_text && (count($args) > 0)) {
+  if (count($error_text) > 0 && (count($args) > 0)) {
       foreach ($args as $key => $val) {
-      islandora_oai_add_error('badArgument', $key, $val);
+        islandora_oai_add_error('badArgument', $key, $val);
       return FALSE;
     }
   }
 
   $earliest_datestamp = islandora_oai_get_earliest_datetime();
-  $indent = 2;
-  $output = " <Identify>\n";
+  $writer->startElement('Identify');
+  $writer->writeElement('repositoryName', variable_get('oai2_repository_name', 'CCK OAI'));
+  $writer->writeElement('baseURL', variable_get('oai2_path', 'oai2'));
+  $writer->writeElement('protocolVersion', '2.0');
+  $writer->writeElement('adminEmail', variable_get('oai2_admin_email', 'N/A'));
+  $writer->writeElement('earliestDatestamp', $earliest_datestamp);
+  $writer->writeElement('deletedRecord', 'no');
+  $writer->writeElement('granularity', 'YYYY-MM-DDThh:mm:ssZ');
+  $writer->writeElement('compression', 'yes');
 
-  $output .= islandora_oai_xmlformat(variable_get('oai2_repository_name', 'CCK OAI'), 'repositoryName', '', $indent);
-  $output .= islandora_oai_xmlformat($base_url . '/' . variable_get('oai2_path', 'oai2'), 'baseURL', '', $indent);
-  $output .= islandora_oai_xmlformat('2.0', 'protocolVersion', '', $indent);
-  $output .= islandora_oai_xmlformat(variable_get('oai2_admin_email', 'N/A'), 'adminEmail', '', $indent);
+  // Description
+  $writer->startElement('description');
 
-  $output .= islandora_oai_xmlformat($earliest_datestamp, 'earliestDatestamp', '', $indent);
-
-  $output .= islandora_oai_xmlformat('no', 'deletedRecord', '', $indent);
-  $output .= islandora_oai_xmlformat('YYYY-MM-DDThh:mm:ssZ', 'granularity', '', $indent);
-  $output .= islandora_oai_xmlformat('yes', 'compression', '', $indent);
-
-  // Implementation of unique identifiers for items.
-  // See http://www.openarchives.org/OAI/2.0/guidelines-oai-identifier.htm
-  // for details
-
-  $output .=
-      '<description>
-    <oai-identifier xmlns="http://www.openarchives.org/OAI/2.0/oai-identifier"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai-identifier
-    http://www.openarchives.org/OAI/2.0/oai-identifier.xsd">
-    <scheme>oai</scheme>
-    <repositoryIdentifier>' . variable_get('oai2_repository_identifer', 'drupal-site.org') . '</repositoryIdentifier>
-    <delimiter>:</delimiter>
-    <sampleIdentifier>' . 'oai:' . variable_get('oai2_repository_identifier', 'drupal-site.org') . ':123</sampleIdentifier>
-    </oai-identifier>
-    </description>' . "\n";
-
-  $output .= " </Identify>\n";
-
-  return $output;
+  // OAI Identifer
+  $writer->startElement('oai-identifier');
+  $writer->writeAttribute('xmlns', 'http://www.openarchives.org/OAI/2.0/oai-identifier');
+  $writer->writeAttribute('xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance');
+  $writer->writeAttribute('xsi:schemaLocation', 'http://www.openarchives.org/OAI/2.0/oai-identifier
+    http://www.openarchives.org/OAI/2.0/oai-identifier.xsd');
+  $writer->writeElement('scheme', 'oai');
+  $writer->writeElement('repositoryIdentifier', variable_get('oai2_repository_identifier', 'drupal-site.org'));
+  $writer->writeElement('delimiter', ':');
+  $writer->writeElement('sampleIdentifier', 'oai:' . variable_get('oai2_repository_identifier', 'drupal-site.org') . ':123');
+  $writer->endElement();
+  $writer->endElement();
 }
 
 /**
@@ -743,7 +693,6 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   $limit = variable_get('oai2_max_size', '20');
 
   try {
-    // change to use build, add our shit then execute
     $query_processor->executeQuery();
     $solr_results = $query_processor->solrResult;
   } catch (Exception $e) {
@@ -763,7 +712,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
  *   if TRUE function will list records
  * @return output in XML-Format
  * */
-function islandora_oai_list_id_rec($args, $list_rec=FALSE) {
+function islandora_oai_list_id_rec(&$writer, $args, $list_rec=FALSE) {
   $query_args = array();
   $max_records = variable_get('oai2_max_size', '20'); //max records to send in one response
   $expire_seconds = variable_get('oai2_expire_time', '86400');
@@ -925,15 +874,17 @@ function islandora_oai_list_id_rec($args, $list_rec=FALSE) {
   $output = '';
   $response_xml = '';
 
-  if ($num_rows) {
-    foreach ($results->response->docs as $doc) {
-      $response_xml .= islandora_oai_build_record_response($doc, $list_rec, $metadata_prefix);
-    }
+  if ($list_rec) {
+    $writer->startElement('ListRecords');
+  }
+  else {
+    $writer->startElement('ListIdentifiers');
   }
 
-  if ($response_xml != '') {
-    $output .= ( $list_rec) ? " <ListRecords>\n" : " <ListIdentifiers>\n";
-    $output .= $response_xml;
+  if ($num_rows) {
+    foreach ($results->response->docs as $doc) {
+      islandora_oai_build_record_response($writer, $doc, $list_rec, $metadata_prefix);
+    }
 
     if ($num_rows - $token->deliveredrecords > $max_records) {
       if (!isset($metadata_prefix)) {
@@ -954,19 +905,15 @@ function islandora_oai_list_id_rec($args, $list_rec=FALSE) {
         ))
         ->execute();
 
-      $token_xml = islandora_oai_get_token_xml($num_rows, $token->deliveredrecords, $expire_time, $token_string);
+      $token_xml = islandora_oai_write_token_xml($writer, $num_rows, $token->deliveredrecords, $expire_time, $token_string);
     }
     // Last delivery, return empty ResumptionToken
     elseif (isset($resumption_token)) {
-      $token_xml = islandora_oai_get_token_xml($num_rows, $token->deliveredrecords);
+      $token_xml = islandora_oai_write_token_xml($writer, $num_rows, $token->deliveredrecords);
     }
-
-    //ResumtionToken Output
-    if (isset($token_xml)) {
-      $output .= $token_xml;
-    }
-    $output .= ($list_rec) ? " </ListRecords>\n" : " </ListIdentifiers>\n";
+    $writer->endElement();
   }
+  //
   else {
     islandora_oai_add_error('noRecordsMatch');
     return FALSE;
@@ -982,7 +929,7 @@ function islandora_oai_list_id_rec($args, $list_rec=FALSE) {
  * @param type $metadata_prefix
  * @return string
  */
-function islandora_oai_build_record_response($record, $full_record = FALSE, $metadata_prefix = 'oai_dc') {
+function islandora_oai_build_record_response(&$writer, $record, $full_record = FALSE, $metadata_prefix = 'oai_dc') {
   $identifier = $record->PID;
   $identifier = str_replace(':', '_', $identifier);
   $repo_id = variable_get('oai2_repository_identifier', 'drupal-site.org');
@@ -991,14 +938,13 @@ function islandora_oai_build_record_response($record, $full_record = FALSE, $met
   $date_stamp = $date->format("Y-m-d\TH:i:s\Z");
 
   $output = '';
-  if ($full_record) { // list records...
-    $output .= '  <record>' . "\n";
+  if ($full_record) {
+    $writer->startElement('record');
   }
 
-  $output .= '   <header>' . "\n";
-  $output .= islandora_oai_xmlformat('oai:' . $repo_id . ':' . $identifier, 'identifier', '', 4);
-  $output .= islandora_oai_xmlformat($date_stamp, 'datestamp', '', 4);
-
+  $writer->startElement('header');
+  $writer->writeElement('identifier', 'oai: ' . $repo_id . ':' . $identifier);
+  $writer->writeElement('datestamp', $date_stamp);
 
   foreach (_islandora_oai_get_membership_array() as $spec) {
     list($field, $prefix) = $spec;
@@ -1010,13 +956,13 @@ function islandora_oai_build_record_response($record, $full_record = FALSE, $met
         if (empty($prefix) || (!empty($prefix) && strpos($set, $prefix) === 0)) {
           $set_spec = drupal_substr($set, drupal_strlen($prefix));
           $set_spec = str_replace(':', '_', $set_spec);
-          $output .= islandora_oai_xmlformat($set_spec, 'setSpec', '', 4);
+          $writer->writeElement('setSpec', $set_spec);
         }
       }
     }
   }
 
-  $output .= '   </header>' . "\n";
+   $writer->endElement();
 
   // List record values
   if ($full_record) {
@@ -1061,8 +1007,6 @@ function islandora_oai_build_record_response($record, $full_record = FALSE, $met
           $xslt->importStylesheet($XSL);
           $oai_output = $xslt->transformToXml($input);
         }
-        // Required as transform creates another xml version at the top
-        $oai_output = str_replace('<?xml version="1.0"?>', '', $oai_output);
       }
       else {
         $oai_output = $content;
@@ -1088,13 +1032,13 @@ function islandora_oai_build_record_response($record, $full_record = FALSE, $met
     }
 
     if (!empty($oai_output)) {
-      $output .= '   <metadata>' . "\n";
-      $output .= $oai_output;
-      $output .= "</metadata>\n";
+      $writer->startElement('metadata');
+      $writer->writeRaw($oai_output);
+      $writer->endElement();
     }
-    $output .= '  </record>' . "\n";
+    // Close our record
+    $writer->endElement();
   }
-  return $output;
 }
 
 /**
@@ -1132,21 +1076,22 @@ function _islandora_oai_datetime_to_solr_time($datetime) {
  *   Return the token XML if the token exists.
  *   If the token does not exist in db, return FALSE.
  */
-function islandora_oai_get_token_xml($num_rows, $delivered_records, $expire_time = NULL, $token = NULL) {
-
+function islandora_oai_write_token_xml($writer, $num_rows, $delivered_records, $expire_time = NULL, $token = NULL) {
   if ($token) {
-    $token_xml = '<resumptionToken expirationDate="' . $expire_time . '" ';
-    $token_xml .= ' completeListSize="' . $num_rows . '" ';
-    $token_xml .= 'cursor="' . $delivered_records . '" >' . $token;
-    $token_xml .= "</resumptionToken>\n";
+    $writer->startElement('resumptionToken');
+    $writer->writeAttribute('expirationDate', $expire_time);
+    $writer->writeAttribute('completeListSize', $num_rows);
+    $writer->writeAttribute('cursor', $delivered_records);
+    $writer->text($token);
+    $writer->endElement();
   }
   // Last delivery, return empty ResumptionToken
   else {
-    $token_xml = '<resumptionToken completeListSize="' . $num_rows . '" ';
-    $token_xml .= 'cursor="' . $delivered_records . '" >';
-    $token_xml .= "</resumptionToken>\n";
+    $writer->startElement('resumptionToken');
+    $writer->writeAttribute('completeListSize', $num_rows);
+    $writer->writeAttribute('cursor', $delivered_records);
+    $writer->endElement();
   }
-  return $token_xml;
 }
 
 /**
@@ -1177,7 +1122,7 @@ function islandora_oai_get_token($resumption_token) {
  * @return $output
  *   Output in XML format.
  */
-function islandora_oai_list_metadata_formats($args) {
+function islandora_oai_list_metadata_formats(&$writer, $args) {
   foreach ($args as $key => $val) {
     switch ($key) {
       case 'identifier':
@@ -1221,28 +1166,31 @@ function islandora_oai_list_metadata_formats($args) {
     }
   }
 
-  $list_meta_data_formats = '';
+  $list_meta_data_formats = array();
   $result = db_query("SELECT * FROM {oai2_metadata_formats}");
 
   foreach ($result as $fmt) {
-    $list_meta_data_formats .= " <metadataFormat>\n";
-    $list_meta_data_formats .= islandora_oai_xmlformat($fmt->metadata_prefix, 'metadataPrefix', '', 3);
-    $list_meta_data_formats .= islandora_oai_xmlformat($fmt->oai2_schema, 'schema', '', 3);
-    $list_meta_data_formats .= islandora_oai_xmlformat($fmt->metadata_namespace, 'metadataNamespace', '', 3);
-    $list_meta_data_formats .= "  </metadataFormat>\n";
+    $list_meta_data_formats[] = array(
+      'metadataPrefix' => $fmt->metadata_prefix,
+      'schema' => $fmt->oai2_schema,
+      'metadataNamespace' => $fmt->metadata_namespace,
+    );
   }
 
-  if ($list_meta_data_formats) {
-    $output .= " <ListMetadataFormats>\n";
-    $output .= $list_meta_data_formats;
-    $output .= " </ListMetadataFormats>\n";
+  if (count($list_meta_data_formats) > 0) {
+    $writer->startElement('ListMetadataFormats');
+    foreach($list_meta_data_formats as $entry) {
+      $writer->startElement('metadataFormat');
+      $writer->writeElement('metadataPrefix', $entry['metadataPrefix']);
+      $writer->writeElement('schema', $entry['schema']);
+      $writer->writeElement('metadataNamespace', $entry['metadataNamespace']);
+      $writer->endElement();
+    }
+    $writer->endElement();
   }
   else {
     islandora_oai_add_error('noMetadataFormats');
-    return FALSE;
   }
-
-  return $output;
 }
 
 /**
@@ -1253,7 +1201,7 @@ function islandora_oai_list_metadata_formats($args) {
  * @return $output
  *   Output in XML format.
  */
-function islandora_oai_list_sets($args) {
+function islandora_oai_list_sets($writer, $args) {
   global $user;
 
   foreach ($args as $key => $val) {
@@ -1319,6 +1267,7 @@ function islandora_oai_list_sets($args) {
 
   $list_sets = '';
 
+  $print_list_set = FALSE;
   foreach ($query_results as $result) {
     $pid_namespaces = array();
     foreach (explode(' ', trim(variable_get('fedora_pids_allowed', 'default: demo: changeme: islandora: ilives: '))) as $namespace) {
@@ -1328,77 +1277,34 @@ function islandora_oai_list_sets($args) {
     $temp = $result['object']['uri'];
     $setspec = substr($temp, strrpos($temp, '/') + 1);
 
-    foreach ($pid_namespaces as $key => $namespace) {//limit the spec to the namespaces allowed in our Drupal instance
+    foreach ($pid_namespaces as $key => $namespace) {
+      // Limit the spec to the namespaces allowed in our Drupal instance
       if (strpos($setspec, $namespace) === 0) {
-        $list_sets .= "   <set>\n";
+        // Logic to print our ListSets only if we have valid records.
+        // Will only fire once.
+        if (!$print_list_set) {
+          $writer->startElement('ListSets');
+          $print_list_set = TRUE;
+        }
+        $writer->startElement('set');
         $setName = $result['title']['value'];
 
         if (empty($setName)) {
           $setName = t('Empty label');
         }
-        $list_sets .= islandora_oai_xmlformat(str_replace(':', '_', $setspec), 'setSpec', '', 4); //replace the pid colon with a _ as : are used as set separators as defined in the oai spec.
-        $list_sets .= islandora_oai_xmlformat($setName, 'setName', '', 4);
-        $list_sets .= "   </set>\n";
+        $set_pid = str_replace(':', '_', $setspec);
+        $writer->writeElement('setSpec', $set_pid);
+        $writer->writeElement('setName', $setName);
+        $writer->endElement();
       }
     }
   }
-  if ($list_sets) {
-    $output .= "  <ListSets>\n";
-    $output .= $list_sets;
-    $output .= "  </ListSets>\n";
+  // Need to close our ListSets element
+  if ($print_list_set) {
+    $writer->endElement();
   }
   else {
     islandora_oai_add_error('noSetHierarchy', $key, $val);
-  }
-  return $output;
-}
-
-/**
- * Remove invalid characters in our XML string.
- *
- * @return $xml_str
- *   An XML string.
- */
-function islandora_oai_xmlstr($string, $charset = 'iso8859-1', $xmlescaped = 'FALSE') {
-  $xmlstr = stripslashes(trim($string));
-
-  $xmlstr = strip_tags($xmlstr);
-
-  // remove invalid characters
-  $pattern = "/[\x-\x8\xb-\xc\xe-\x1f]/";
-  $xmlstr = preg_replace($pattern, '', $xmlstr);
-
-  // escape only if string is not escaped
-  if (!$xmlescaped) {
-    $xmlstr = check_plain($xmlstr);
-  }
-
-  return $xmlstr;
-}
-
-/**
- * Format an XML tag given required information.
- */
-function islandora_oai_xmlformat($record, $element, $attr = '', $indent = 0) {
-  $xmlescaped = FALSE;
-  $charset = 'UTF-8';
-
-  if ($attr != '') {
-    $attr = ' ' . $attr;
-  }
-
-  $str = '';
-  if (is_array($record)) {
-    foreach ($record as $val) {
-      $str .= str_pad('', $indent) . '<' . $element . $attr . '>' . islandora_oai_xmlstr($val, $charset, $xmlescaped) . '</' . $element . ">\n";
-    }
-    return $str;
-  }
-  elseif ($record != '') {
-    return str_pad('', $indent) . '<' . $element . $attr . '>' . islandora_oai_xmlstr($record, $charset, $xmlescaped) . '</' . $element . ">\n";
-  }
-  else {
-    return '';
   }
 }
 

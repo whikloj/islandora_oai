@@ -63,13 +63,6 @@ function islandora_oai_settings($form, $form_state) {
     '#default_value' => variable_get('oai2_expire_time', '86400'),
     '#description' => t('The amount of time a resumption token will remain valid in seconds. Defaults to one day (86400s).'),
   );
-  $form['oai2_configuration']['oai2_xslt'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Repository stylesheet XSLT'),
-    '#size' => '50',
-    '#default_value' => variable_get('oai2_xslt', ''),
-    '#description' => t('The XSLT stylesheet for easy browsing the repository without harvester.'),
-  );
   $form['oai2_configuration']['oai2_date_field'] = array(
     '#type' => 'textfield',
     '#title' => t('Solr date field'),
