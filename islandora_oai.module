@@ -875,7 +875,7 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec=FALSE) {
     else {
       $writer->startElement('ListIdentifiers');
     }
-    foreach ($results['response']['objects'] as $doc) {
+    foreach ($results['objects'] as $doc) {
       islandora_oai_build_record_response($writer, $doc['solr_doc'], $list_rec, $metadata_prefix);
     }
 
