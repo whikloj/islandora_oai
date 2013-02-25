@@ -876,6 +876,7 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec=FALSE) {
       $writer->startElement('ListIdentifiers');
     }
     foreach ($results['objects'] as $doc) {
+      dd($doc);
       islandora_oai_build_record_response($writer, $doc['solr_doc'], $list_rec, $metadata_prefix);
     }
 
@@ -947,9 +948,9 @@ function islandora_oai_build_record_response(&$writer, $record, $full_record = F
   foreach (_islandora_oai_get_membership_array () as $spec) {
     list($field, $prefix) = $spec;
 
-    if (isset($record->{$field})) {
+    if (isset($record[$field])) {
       // Need to cast to array such that we can check for multiple collections
-      foreach ((array) $record->{$field} as $set) {
+      foreach ((array) $record[$field] as $set) {
         $set = str_replace('info:fedora/', '', $set);
         if (empty($prefix) || (!empty($prefix) && strpos($set, $prefix) === 0)) {
           $set_spec = drupal_substr($set, drupal_strlen($prefix));
