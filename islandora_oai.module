@@ -351,7 +351,7 @@ function islandora_oai_get_record(&$writer, $args) {
   }
 
   $results = islandora_oai_query_solr(0, 'PID', $identifier);
-  $record = $results[0];
+  $record = $results['objects'][0];
 
   if (!$record['PID']) {
     islandora_oai_add_error('idDoesNotExist', '', $identifier);
@@ -691,7 +691,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
 
   try {
     $query_processor->executeQuery();
-    $solr_results = $query_processor->islandoraSolrResult['response']['objects'];
+    $solr_results = $query_processor->islandoraSolrResult['response'];
   } catch (Exception $e) {
     drupal_set_message(t('error searching @message', array('@message' => $e->getMessage())), 'error');
   }
@@ -866,7 +866,6 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec=FALSE) {
   }
 
   $results = islandora_oai_query_solr($token->deliveredrecords, $field, $query, $set, $date_query);
-
   $num_rows = $results['numFound'];
 
   if ($num_rows) {
@@ -876,7 +875,8 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec=FALSE) {
     else {
       $writer->startElement('ListIdentifiers');
     }
-    foreach ($results['response']['objects'] as $doc) {
+    foreach ($results['objects'] as $doc) {
+      dd($doc);
       islandora_oai_build_record_response($writer, $doc['solr_doc'], $list_rec, $metadata_prefix);
     }
 
@@ -948,9 +948,9 @@ function islandora_oai_build_record_response(&$writer, $record, $full_record = F
   foreach (_islandora_oai_get_membership_array () as $spec) {
     list($field, $prefix) = $spec;
 
-    if (isset($record->{$field})) {
+    if (isset($record[$field])) {
       // Need to cast to array such that we can check for multiple collections
-      foreach ((array) $record->{$field} as $set) {
+      foreach ((array) $record[$field] as $set) {
         $set = str_replace('info:fedora/', '', $set);
         if (empty($prefix) || (!empty($prefix) && strpos($set, $prefix) === 0)) {
           $set_spec = drupal_substr($set, drupal_strlen($prefix));
