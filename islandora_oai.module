@@ -876,7 +876,6 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec=FALSE) {
       $writer->startElement('ListIdentifiers');
     }
     foreach ($results['objects'] as $doc) {
-      dd($doc);
       islandora_oai_build_record_response($writer, $doc, $list_rec, $metadata_prefix);
     }
 
