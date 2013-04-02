@@ -223,7 +223,7 @@ function islandora_oai_settings($form, $form_state) {
     '#title' => t('File to use for transforming @metadata_prefix', array('@metadata_prefix' => $metadata_prefix)),
     '#options' => $transform_options,
     '#default_value' => $default_transform,
-    '#description' => t('XSL or XSLT file used to translate existing metadata to an appropriate OAI-PMH format.')
+    '#description' => t('XSL or XSLT file used to translate existing metadata to an appropriate OAI-PMH format.'),
   );
 
   $form['oai2_metadata']['oai2_options']['upload'] = array(
