@@ -160,7 +160,7 @@ function islandora_oai_settings($form, $form_state) {
     '#ajax' => array(
       'callback' => 'islandora_oai_select_metadata_prefix_js',
       'wrapper' => 'islandora_oai',
-      ),
+    ),
   );
 
   $result = db_query("SELECT * FROM {oai2_metadata_formats} WHERE name = :metadata_format",
@@ -245,7 +245,7 @@ function islandora_oai_settings($form, $form_state) {
     '#ajax' => array(
       'callback' => 'islandora_oai_upload_file_js',
       'wrapper' => 'islandora_oai_options',
-     ),
+    ),
     '#title_display' => 'invisible',
     '#size' => 22,
   );
