@@ -1,3 +1,14 @@
+BUILD STATUS
+------------
+Current build status:
+[![Build Status](https://travis-ci.org/Islandora/islandora_oai.png?branch=7.x)](https://travis-ci.org/Islandora/islandora_oai)
+
+CI Server:
+http://jenkins.discoverygarden.ca
+
+ISLANDORA OAI
+==================
+
 CONTENTS OF THIS FILE
 ---------------------
 
