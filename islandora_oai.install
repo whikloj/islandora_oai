@@ -71,7 +71,8 @@ function islandora_oai_schema() {
       ),
       'setargs' => array(
         'type' => 'varchar',
-        'length' => '64', // Length of fedora pid.
+        // Length of fedora pid.
+        'length' => '64',
         'not null' => FALSE,
         'default' => '',
       ),

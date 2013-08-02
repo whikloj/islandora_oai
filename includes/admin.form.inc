@@ -254,14 +254,14 @@ function islandora_oai_settings($form, $form_state) {
 }
 
 /**
- *
+ * Function select_metadata_prefix_js.
  */
 function islandora_oai_select_metadata_prefix_js($form, &$form_state) {
   return $form['oai2_metadata'];
 }
 
 /**
- *
+ * Function upload_file_js.
  */
 function islandora_oai_upload_file_js($form, &$form_state) {
   return $form['oai2_metadata']['oai2_options'];
