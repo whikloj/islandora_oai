@@ -171,7 +171,7 @@ function islandora_oai_admin_form($form, $form_state) {
       '#type' => 'textfield',
       '#size' => 30,
       '#title' => 'Metadata Datastream ID',
-      '#default_value' => variable_get("islandora_oai_metadata_datastream_id_$format->metadata_prefix", 'MODS'),
+      '#default_value' => variable_get("islandora_oai_metadata_datastream_id_$format->metadata_prefix", 'DC'),
       '#description' => t('(Note that this is case-sensitive)'),
       '#states' => array(
         'visible' => array(

@@ -310,7 +310,7 @@ function islandora_oai_get_record(&$writer, $args) {
         break;
 
       case 'metadataPrefix':
-        $result = db_query("SELECT * FROM {oai2_metadata_formats} WHERE metadata_prefix=:metadata_prefix", array(':metadata_prefix' => $val));
+        $result = db_query("SELECT * FROM {islandora_oai_metadata_formats} WHERE metadata_prefix=:metadata_prefix", array(':metadata_prefix' => $val));
         if ($result->rowCount() > 0) {
           $metadata_prefix = $val;
         }
@@ -753,7 +753,7 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec = FALSE) {
 
       case 'metadataPrefix':
         if (!isset($metadata_prefix)) {
-          $result = db_query("SELECT * FROM {oai2_metadata_formats} WHERE metadata_prefix=:metadata_prefix ", array(':metadata_prefix' => $val));
+          $result = db_query("SELECT * FROM {islandora_oai_metadata_formats} WHERE metadata_prefix=:metadata_prefix ", array(':metadata_prefix' => $val));
 
           if ($result->rowCount() > 0 && !isset($metadata_prefix)) {
             $metadata_prefix = $val;
@@ -947,7 +947,7 @@ function islandora_oai_build_record_response(&$writer, $record, $full_record = F
   // List record values.
   if ($full_record) {
     $object = islandora_object_load($record['PID']);
-    $param = variable_get("islandora_oai_metadata_datastream_id_$metadata_prefix", 'MODS');
+    $param = variable_get("islandora_oai_metadata_datastream_id_$metadata_prefix", 'DC');
 
     if (isset($object[$param])) {
       $content = $object->repository->api->a->getDatastreamDissemination($object->id, $param);
