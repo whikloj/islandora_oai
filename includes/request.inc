@@ -555,7 +555,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
     $query = '*';
     $field = '*';
   }
-  $query = $field . ':' . $query;
+  $query = $field . ':' . Apache_Solr_Service::escape($query);
   $query_processor->buildQuery($query);
   $query_processor->solrParams['fl'] = '*, PID, ' . variable_get('islandora_oai_date_field', 'fgs_lastModifiedDate_dt');
 
@@ -672,6 +672,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   }
   $query_processor->solrStart = $start;
   $query_processor->solrLimit = variable_get('islandora_oai_max_size', '20');
+
   try {
     $query_processor->executeQuery(FALSE);
     $solr_results = $query_processor->islandoraSolrResult['response'];
