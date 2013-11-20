@@ -506,24 +506,17 @@ function islandora_oai_get_earliest_datetime() {
  * Returns the collection fields defined in the admin page in array format.
  *
  * @return array
- *   The membership info in an array containing multiple arrays. Each array
- *   contains:
- *     - field
- *     - prefix
+ *   An array containing the fields.
  */
 function islandora_oai_get_membership_array() {
   // Store in a static variable, to avoid re-parsing within the same request.
-  static $mini_cache = array();
+  $mini_cache = &drupal_static(__FUNCTION__, array());
 
   if (empty($mini_cache)) {
-    foreach (preg_split('/(\\r?\\n|\\r)+/', variable_get('islandora_oai_collection_field', 'rels.isMemberOfCollection\nrel.isMemberOf')) as $spec) {
-      $split = preg_split('/[[:space:]]+~[[:space:]]+/', $spec);
-      $split = array_filter($split, 'trim');
-      if (count($split) === 1) {
-        $split[] = '';
-      }
-      $mini_cache[] = $split;
+    foreach (preg_split('/(\\r?\\n|\\r)+/', variable_get('islandora_oai_collection_field', 'RELS_EXT_isMemberOfCollection_uri_ms\nRELS_EXT_isMemberOf_uri_ms')) as $spec) {
+      $mini_cache[] = trim($spec);
     }
+    $mini_cache = array_filter($mini_cache);
   }
   return $mini_cache;
 }
@@ -552,10 +545,12 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
 
   // Build the query string.
   if (empty($query)) {
-    $query = '*';
-    $field = '*';
+    $query = '*:*';
   }
-  $query = $field . ':' . Apache_Solr_Service::escape($query);
+  else {
+    $query = $field . ':' . Apache_Solr_Service::escape($query);
+  }
+
   $query_processor->buildQuery($query);
   $query_processor->solrParams['fl'] = '*, PID, ' . variable_get('islandora_oai_date_field', 'fgs_lastModifiedDate_dt');
 
@@ -569,7 +564,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   foreach ($exclude_content_models as $content_model) {
     $content_model = trim($content_model);
     if ($content_model) {
-      $query_processor->solrParams['fq'][] = '(-' . $has_model . ':"' . $content_model . '")';
+      $query_processor->solrParams['fq'][] = '(-' . $has_model . ':("' . $content_model . '" OR "info:fedora/' . $content_model . '"))';
     }
   }
   if ($set) {
@@ -661,18 +656,18 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
     $set = str_replace('_', ':', $set);
     $walked_sets[] = $set;
     $set_fq = array();
-
+    // We are using OR here to account for fields in Solr that may index
+    // just the PID or the entire URI. In the future if performance becomes
+    // an issue with huge Solr queries we should re-visit this.
     foreach ($walked_sets as $walk) {
-      foreach (islandora_oai_get_membership_array() as $spec) {
-        list($walk_field, $prefix) = $spec;
-        $set_fq[] = $walk_field . ':"' . $prefix . $walk . '"';
+      foreach (islandora_oai_get_membership_array() as $collection_field) {
+        $set_fq[] = $collection_field . ':("' . $walk . '" OR "info:fedora/' . $walk . '")';
       }
     }
     $query_processor->solrParams['fq'][] = '(' . implode(' OR ', $set_fq) . ')';
   }
   $query_processor->solrStart = $start;
   $query_processor->solrLimit = variable_get('islandora_oai_max_size', '20');
-
   try {
     $query_processor->executeQuery(FALSE);
     $solr_results = $query_processor->islandoraSolrResult['response'];
@@ -927,18 +922,13 @@ function islandora_oai_build_record_response(&$writer, $record, $full_record = F
   $writer->writeElement('identifier', 'oai:' . $repo_id . ':' . $identifier);
   $writer->writeElement('datestamp', $date_stamp);
 
-  foreach (islandora_oai_get_membership_array() as $spec) {
-    list($field, $prefix) = $spec;
-
-    if (isset($record[$field])) {
+  foreach (islandora_oai_get_membership_array() as $collection_field) {
+    if (isset($record[$collection_field])) {
       // Need to cast to array such that we can check for multiple collections.
-      foreach ((array) $record[$field] as $set) {
+      foreach ((array) $record[$collection_field] as $set) {
         $set = str_replace('info:fedora/', '', $set);
-        if (empty($prefix) || (!empty($prefix) && strpos($set, $prefix) === 0)) {
-          $set_spec = drupal_substr($set, drupal_strlen($prefix));
-          $set_spec = str_replace(':', '_', $set_spec);
-          $writer->writeElement('setSpec', $set_spec);
-        }
+        $set_spec = str_replace(':', '_', $set);
+        $writer->writeElement('setSpec', $set_spec);
       }
     }
   }
