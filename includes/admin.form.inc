@@ -83,7 +83,7 @@ function islandora_oai_admin_form($form, $form_state) {
     '#title' => t('Solr RELS-EXT Collection Field'),
     '#size' => '50',
     '#default_value' => variable_get('islandora_oai_collection_field', "RELS_EXT_isMemberOfCollection_uri_ms\nRELS_EXT_isMemberOf_uri_ms"),
-    '#description' => t('The Solr fields used to determine what collection, if any, an object is a member of. To specify a prefix, use the format "field_name ~ prefix".'),
+    '#description' => t('The Solr fields used to determine what collection, if any, an object is a member of.'),
   );
   $form['islandora_oai_configuration']['islandora_oai_content_model_field'] = array(
     '#type' => 'textfield',
