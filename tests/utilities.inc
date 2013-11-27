@@ -20,10 +20,7 @@ class IslandoraOAIWebTestCase extends IslandoraWebTestCase {
    * An associative array of queries => results.
    */
   public function islandora_oai_query_request($request, $xpaths, $prefix = 'oai') {
-    $xml = simplexml_load_string($this->curlExec(array(
-      CURLOPT_URL => 'http://localhost/oai2?' . $request,
-      CURLOPT_HEADER => FALSE,
-    )));
+    $xml = simplexml_load_string($this->drupalGet('http://localhost/oai2?' . $request));
     $xml->registerXPathNamespace($prefix, 'http://www.openarchives.org/OAI/2.0/');
     $results = array();
     foreach ((array) $xpaths as $xpath) {
