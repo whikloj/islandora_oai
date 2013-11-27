@@ -1207,7 +1207,6 @@ function islandora_oai_list_sets($writer, $args) {
   // Resume previous session?
   if (isset($resumption_token)) {
     $token = islandora_oai_get_token($resumption_token);
-    dsm($token);
     if (!is_object($token)) {
       return FALSE;
     }
