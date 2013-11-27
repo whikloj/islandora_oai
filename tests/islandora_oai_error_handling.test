@@ -368,7 +368,7 @@ XML;
 
     // 4.6 ListSets - badResumptionToken with expired token.
     $first_xpath = '/oai:OAI-PMH/oai:ListSets/oai:resumptionToken';
-    $first_request = "verb=ListSets&metadataPrefix=oai_dc";
+    $first_request = "verb=ListSets";
     $first_results = $this->islandora_oai_query_request($first_request, $first_xpath);
     if (isset($first_results[$first_xpath][0])) {
       sleep(5);
