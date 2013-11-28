@@ -17,11 +17,11 @@ class IslandoraOAIWebTestCase extends IslandoraWebTestCase {
    * @param string $prefix
    *   The prefix Xpath queries use to represent the OAI-PMH 2.0 namespace.
    *
-   * @return array $results
+   * @return array
    *   An associative array of queries => results.
    */
   public function getXpathFromOAIRequest($request, $xpaths, $prefix = 'oai') {
-    $xml = simplexml_load_string($this->drupalGet($base_url . '/oai2?' . $request));
+    $xml = simplexml_load_string($this->drupalGet($GLOBALS['base_url'] . '/oai2?' . $request));
     $xml->registerXPathNamespace($prefix, 'http://www.openarchives.org/OAI/2.0/');
     $results = array();
     foreach ((array) $xpaths as $xpath) {
