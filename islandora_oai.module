@@ -79,7 +79,7 @@ function islandora_oai_islandora_oai_get_xsl_files() {
 
 
 /**
- * Implemenets hook_cron().
+ * Implements hook_cron().
  */
 function islandora_oai_cron() {
   $expire_seconds = variable_get('islandora_oai_expire_time', '86400');

@@ -1035,7 +1035,7 @@ function islandora_oai_datetime_to_solr_time($datetime) {
  *   The XMLWriter object being passed by reference for constructing our output.
  * @param int $num_rows
  *   The complete list size.
- * @param array $delivered_records
+ * @param int $delivered_records
  *   The number of records that have been delivered.
  * @param string $expire_time
  *   The expiration time of the resumption token.
@@ -1262,7 +1262,7 @@ EOQ;
   $total_records = $connection->repository->ri->countQuery($sparql_query, 'sparql');
   $sparql_query .= "
   LIMIT $max_records
-  OFFSET $token->deliveredrecords";
+  OFFSET {$token->deliveredrecords}";
   $query_results = $connection->repository->ri->sparqlQuery($sparql_query);
   $print_list_set = FALSE;
 
