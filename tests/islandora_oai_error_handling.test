@@ -366,25 +366,25 @@ XML;
     }
 
     // 4.6 ListSets - badResumptionToken with expired token.
-    //$first_xpath = '/oai:OAI-PMH/oai:ListSets/oai:resumptionToken';
-    //$first_request = "verb=ListSets";
-    //$first_results = $this->getXpathFromOAIRequest($first_request, $first_xpath);
-    //if (isset($first_results[$first_xpath][0])) {
-    //  sleep(5);
-    //  $this->cronRun();
-    //  $token = (string) $first_results[$first_xpath][0];
-    //  $xpath = '/oai:OAI-PMH/oai:error[@code="badResumptionToken"]';
-    //  $request = "verb=ListSets&resumptionToken=$token";
-    //  $results = $this->getXpathFromOAIRequest($request, $xpath);
-    //  if (isset($results[$xpath][0])) {
-    //    $this->assertEqual((string) $results[$xpath][0], "The resumptionToken '$token' does not exist or has already expired.", "4.6 ListSets badResumptionToken: Triggered error using an expired resumptionToken.", "Islandora");
-    //  }
-    //  else {
-    //    $this->fail("4.6 ListSets - badResumptionToken with expired token: no results found for Xpath query $xpath using GET request $request", "Islandora");
-    //  }
-    //}
-    //else {
-    //  $this->fail("4.6 ListSets - badResumptionToken with expired token: no resumptionToken was found for Xpath query $first_xpath using GET request $first_request", "Islandora");
-    //}
+    $first_xpath = '/oai:OAI-PMH/oai:ListSets/oai:resumptionToken';
+    $first_request = "verb=ListSets";
+    $first_results = $this->getXpathFromOAIRequest($first_request, $first_xpath);
+    if (isset($first_results[$first_xpath][0])) {
+      sleep(5);
+      $this->cronRun();
+      $token = (string) $first_results[$first_xpath][0];
+      $xpath = '/oai:OAI-PMH/oai:error[@code="badResumptionToken"]';
+      $request = "verb=ListSets&resumptionToken=$token";
+      $results = $this->getXpathFromOAIRequest($request, $xpath);
+      if (isset($results[$xpath][0])) {
+        $this->assertEqual((string) $results[$xpath][0], "The resumptionToken '$token' does not exist or has already expired.", "4.6 ListSets badResumptionToken: Triggered error using an expired resumptionToken.", "Islandora");
+      }
+      else {
+        $this->fail("4.6 ListSets - badResumptionToken with expired token: no results found for Xpath query $xpath using GET request $request", "Islandora");
+      }
+    }
+    else {
+      $this->fail("4.6 ListSets - badResumptionToken with expired token: no resumptionToken was found for Xpath query $first_xpath using GET request $first_request", "Islandora");
+    }
   }
 }
