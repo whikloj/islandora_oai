@@ -5,4 +5,6 @@
  * A divers assortment of GET response tests.
  */
 
-// @TODO: Literally anything.
+class IslandoraOAIGETResponseTestCase extends IslandoraOAIWebTestCase {
+  // @TODO: Literally anything.
+}
