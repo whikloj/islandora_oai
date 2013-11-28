@@ -1210,7 +1210,7 @@ function islandora_oai_list_sets($writer, $args) {
     if (!is_object($token)) {
       return FALSE;
     }
-    elseif ($token->timestamp < (time() - variable_get('islandora_oai_expire_time', '86400'))) {
+    elseif ($token->timestamp < (time() - $expire_seconds)) {
       islandora_oai_add_error('badResumptionToken', '', $resumption_token);
       return FALSE;
     }
