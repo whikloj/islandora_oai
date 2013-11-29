@@ -38,6 +38,7 @@ class IslandoraOAIErrorHandlingTestCase extends IslandoraOAIWebTestCase {
     module_load_include('inc', 'islandora_oai', 'tests/utilities');
     variable_set('islandora_oai_max_size', '1');
     variable_set('islandora_oai_expire_time', '3');
+    variable_set('islandora_oai_date_field', 'timestamp');
 
     // Before anything else, we're going to need a collection in there so that
     // there's more than one object in there for us to 'resume' from when we
