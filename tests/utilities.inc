@@ -23,7 +23,7 @@ class IslandoraOAIWebTestCase extends IslandoraWebTestCase {
   public function getXpathFromOAIRequest($request, $xpaths, $prefix = 'oai') {
     $path = $GLOBALS['base_url'] . '/oai2?' . $request;
     $xml = simplexml_load_string($this->drupalGet($path));
-    if (!xml) {
+    if (!$xml) {
       $this->fail("Could not find XML at $path.");
       return array();
     }
