@@ -68,7 +68,7 @@ XML;
         'mimetype' => 'text/xml',
       ),
     );
-    $this->ingestConstructedObject($properties);
+    $this->ingestConstructedObject($properties, $datastreams);
 
     // Aight, let's produce some errors! These are sorted in the order they
     // appear in the OAI protocol documentation, section 4, which you can read
@@ -387,5 +387,8 @@ XML;
     else {
       $this->fail("4.6 ListSets - badResumptionToken with expired token: no resumptionToken was found for Xpath query $first_xpath using GET request $first_request", "Islandora");
     }
+
+    // Let's get rid of that collection from before.
+    $this->deleteObject($pid, 'Delete Collection');
   }
 }
