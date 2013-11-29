@@ -42,16 +42,24 @@ function islandora_oai_parse_request() {
 
   // Argument repeated more than once in the GET request.
   $arg_list = explode('&', ($_SERVER['QUERY_STRING']));
-  $arg_list = (array_count_values($arg_list));
-
-  $repeat_arg = FALSE;
-
-  // Repeating arguments within the request.
-  foreach ($arg_list as $value) {
-    if ($value > 1) {
-      islandora_oai_add_error('sameArgument');
+  $multiple_list = array();
+  foreach ($arg_list as $arg) {
+    $arg_parts = explode('=', $arg);
+    if (!isset($multiple_list[$arg_parts[0]])) {
+      // Make a new entry and set it to 0.
+      $multiple_list[$arg_parts[0]] = 0;
+    }
+    $multiple_list[$arg_parts[0]]++;
+  }
+  foreach ($multiple_list as $argument => $argument_count) {
+    if ($argument_count > 1) {
+      if ($argument == 'verb') {
+        islandora_oai_add_error('multipleVerb');
+      }
+      else {
+        islandora_oai_add_error('sameArgument');
+      }
       $repeat_arg = TRUE;
-      break;
     }
   }
 
@@ -263,6 +271,11 @@ function islandora_oai_errors($code, $argument = '', $value = '') {
 
     case 'sameVerb':
       $text = t('Do not use the same verb more than once.');
+      $code = 'badVerb';
+      break;
+
+    case 'multipleVerb':
+      $text = t('Cannot have more than one verb in the same request.');
       $code = 'badVerb';
       break;
 
