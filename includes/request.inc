@@ -42,6 +42,7 @@ function islandora_oai_parse_request() {
 
   // Argument repeated more than once in the GET request.
   $arg_list = explode('&', ($_SERVER['QUERY_STRING']));
+  $repeat_arg = FALSE;
   $multiple_list = array();
   foreach ($arg_list as $arg) {
     $arg_parts = explode('=', $arg);
