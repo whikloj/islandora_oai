@@ -392,6 +392,6 @@ XML;
     }
 
     // Let's get rid of that collection from before.
-    $this->deleteObject($pid, 'Delete Collection');
+    $this->deleteObject($pid);
   }
 }
