@@ -77,7 +77,10 @@ function islandora_oai_parse_request() {
   $writer->endElement();
 
   // Switch on verb and dispatch requests.
-  if (!$repeat_arg) {
+  if (!isset($verb)) {
+    islandora_oai_add_error('noVerb');
+  }
+  elseif (!$repeat_arg) {
     switch ($verb) {
 
       case 'GetRecord':
@@ -102,10 +105,6 @@ function islandora_oai_parse_request() {
 
       case 'ListSets':
         islandora_oai_list_sets($writer, $args);
-        break;
-
-      case '':
-        islandora_oai_add_error('noVerb');
         break;
 
       default:
@@ -279,15 +278,6 @@ function islandora_oai_errors($code, $argument = '', $value = '') {
 }
 
 /**
- * Cleanup expired resumption tokens.
- */
-function islandora_oai_cron() {
-  $expire_seconds = variable_get('islandora_oai_expire_time', '86400');
-  $expire_time = gmdate("Y-m-d G:i:s", (time() - $expire_seconds));
-  db_query("DELETE FROM {islandora_oai_tokens} WHERE timestamp < ':expire_time'", array(':expire_time' => $expire_time));
-}
-
-/**
  * Retrieve an individual metadata record from a repository.
  *
  * @param string $writer
@@ -336,9 +326,11 @@ function islandora_oai_get_record(&$writer, $args) {
   }
 
   $results = islandora_oai_query_solr(0, 'PID', $identifier);
-  $record = $results['objects'][0];
 
-  if (!$record['PID']) {
+  if ($results['numFound'] > 0) {
+    $record = $results['objects'][0];
+  }
+  else {
     islandora_oai_add_error('idDoesNotExist', '', $identifier);
     return FALSE;
   }
@@ -623,7 +615,13 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
       foreach ($user->roles as $role) {
         $itql_query .= '$child <http://islandora.ca/ontology/relsext#isViewableByRole> ' . "'$role' or ";
       }
-      $itql_query .= '$child <http://islandora.ca/ontology/relsext#isViewableByUser> ' . "'$user->name'" . ')';
+      if ($user->uid === 0) {
+        $user_name = 'anonymous';
+      }
+      else {
+        $user_name = $user->name;
+      }
+      $itql_query .= '$child <http://islandora.ca/ontology/relsext#isViewableByUser> ' . "'$user_name'" . ')';
       $itql_query .= ')
       )
     and
@@ -790,10 +788,14 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec = FALSE) {
   // Resume previous session?
   if (isset($resumption_token)) {
     $token = islandora_oai_get_token($resumption_token);
-    $metadata_prefix = $token->metadata_prefix;
     if (!is_object($token)) {
       return FALSE;
     }
+    elseif ($token->timestamp < (time() - variable_get('islandora_oai_expire_time', '86400'))) {
+      islandora_oai_add_error('badResumptionToken', '', $resumption_token);
+      return FALSE;
+    }
+    $metadata_prefix = $token->metadata_prefix;
     $query_args = explode('#', $token->queryargs);
     $set = $token->setargs;
     if (isset($query_args) && (!empty($query_args[0]) || !empty($query_args[1]))) {
@@ -1040,7 +1042,7 @@ function islandora_oai_datetime_to_solr_time($datetime) {
  *   The XMLWriter object being passed by reference for constructing our output.
  * @param int $num_rows
  *   The complete list size.
- * @param array $delivered_records
+ * @param int $delivered_records
  *   The number of records that have been delivered.
  * @param string $expire_time
  *   The expiration time of the resumption token.
@@ -1112,12 +1114,10 @@ function islandora_oai_list_metadata_formats(&$writer, $args) {
 
         $connection = islandora_get_tuque_connection();
         $query_results = $connection->repository->ri->itqlQuery($itql_query);
-
         foreach ($query_results as $result) {
           $result_pid = $result['object']['uri'];
         }
-
-        if (!$result_pid == $pid_query) {
+        if (empty($result_pid)) {
           islandora_oai_add_error('idDoesNotExist', 'identifier', $identifier);
           return FALSE;
         }
@@ -1183,81 +1183,95 @@ function islandora_oai_list_metadata_formats(&$writer, $args) {
  */
 function islandora_oai_list_sets($writer, $args) {
   module_load_include('inc', 'islandora', 'includes/utilities');
-  global $user;
 
+  // Max records to send in one response.
+  $max_records = variable_get('islandora_oai_max_size', '20');
+  $expire_seconds = variable_get('islandora_oai_expire_time', '86400');
+  $expire_time = gmstrftime('%Y-%m-%dT%TZ', time() + $expire_seconds);
+  // @TODO: Add support for descriptive metadata for sets?
+  // http://www.openarchives.org/OAI/openarchivesprotocol.html#ListSets.
   foreach ($args as $key => $val) {
     switch ($key) {
       case 'resumptionToken':
-        islandora_oai_add_error('badResumptionToken', $key, $val);
-        return FALSE;
+        // If a resumptionToken is present, we cannot have any other arguments.
+        if (count($args) > 1) {
+          islandora_oai_errors('clear');
+          islandora_oai_add_error('exclusiveArgument');
+          return FALSE;
+        }
+        elseif (!isset($resumption_token)) {
+          $resumption_token = $val;
+        }
+        break;
 
       default:
         islandora_oai_add_error('badArgument', $key, $val);
         return FALSE;
     }
   }
-
-  $itql_query = 'select $object $title $model $parent_model $created from <#ri> where
-    (
-      (
-        (
-          $object <fedora-model:hasModel> $model
-          and $model <mulgara:is> <info:fedora/islandora:collectionCModel>
-          and $parent_model <mulgara:is> <info:fedora/fedora-system:ContentModel-3.0>
-        )
-      or
-        (
-          $object <fedora-model:hasModel> $model
-          and $model <fedora-model:hasModel> $parent_model
-          and $parent_model <mulgara:is> <info:fedora/islandora:collectionCModel>
-          and $object <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
-        )
-      minus $object <http://islandora.ca/ontology/relsext#isViewableByRole> $role
-      minus $object <http://islandora.ca/ontology/relsext#isViewableByUser> $user
-    )
-    or
-    (
-      (
-        $object <fedora-model:hasModel> $model
-        and $model <mulgara:is> <info:fedora/islandora:collectionCModel>
-        and $parent_model <mulgara:is> <info:fedora/fedora-system:ContentModel-3.0>
-      )
-      or
-        (
-          $object <fedora-model:hasModel> $model
-          and $model <fedora-model:hasModel> $parent_model
-          and $parent_model <mulgara:is> <info:fedora/islandora:collectionCModel>
-          and $object <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
-        )
-      and (';
-  foreach ($user->roles as $role) {
-    $itql_query .= '$object <http://islandora.ca/ontology/relsext#isViewableByRole> ' . "'$role' or ";
+  // Resume previous session?
+  if (isset($resumption_token)) {
+    $token = islandora_oai_get_token($resumption_token);
+    if (!is_object($token)) {
+      return FALSE;
+    }
+    elseif ($token->timestamp < (time() - $expire_seconds)) {
+      islandora_oai_add_error('badResumptionToken', '', $resumption_token);
+      return FALSE;
+    }
   }
-  if (isset($user->name)) {
-    $user_name = $user->name;
-  }
+  // Make a new session.
   else {
-    $user_name = 'anonymous';
+    $token = new stdClass();
+    $token->deliveredrecords = 0;
+    $token->extquery = '';
   }
-  $itql_query .= '$object <http://islandora.ca/ontology/relsext#isViewableByUser> ' . "'$user_name'" . ')';
-  $itql_query .= '
-      )
-  )
-  and $object <fedora-model:label> $title
-  and $object <fedora-model:createdDate> $created
-  order by $title';
+  $sparql_query = <<<EOQ
+SELECT ?object ?title ?created FROM <#ri>
+WHERE
+{
+  {
+    ?object <fedora-model:hasModel> <info:fedora/islandora:collectionCModel>
+  }
+  UNION
+  {
+    ?object <fedora-model:hasModel> [<fedora-model:hasModel> <info:fedora/islandora:collectionCModel>]
+  }
+  ?object <fedora-model:label> ?title ;
+          <fedora-model:createdDate> ?created
 
+EOQ;
+  $xacml_filters = array();
+  if (module_exists('islandora_xacml_api')) {
+    $xacml_statements = islandora_xacml_api_islandora_basic_collection_get_query_statements('view');
+    $sparql_query .= implode(' . ', $xacml_statements);
+    $xacml_filters = islandora_xacml_api_islandora_basic_collection_get_query_filters('view');
+  }
+  $filters = array();
+  $namespace_enforced = FALSE;
+  $namespace_enforced = islandora_islandora_basic_collection_get_query_filters();
+  if ($namespace_enforced) {
+    $filters[] = "FILTER($namespace_enforced)";
+  }
+  if (!empty($xacml_filters)) {
+    $filters[] = "FILTER($xacml_filters)";
+  }
+  $sparql_query .= implode(' ', $filters);
+
+  // Add on the ORDER BY and last } to complete the query.
+  $sparql_query .= <<<EOQ
+}
+  ORDER BY ?title
+EOQ;
   $connection = islandora_get_tuque_connection();
-  $query_results = $connection->repository->ri->itqlQuery($itql_query);
-
+  $total_records = $connection->repository->ri->countQuery($sparql_query, 'sparql');
+  $sparql_query .= "
+  LIMIT $max_records
+  OFFSET {$token->deliveredrecords}";
+  $query_results = $connection->repository->ri->sparqlQuery($sparql_query);
   $print_list_set = FALSE;
 
   foreach ($query_results as $result) {
-    // Limit the spec to the namespaces allowed in our Drupal instance.
-    $allowed_namespace = islandora_namespace_accessible($result['object']['value']);
-    if (!$allowed_namespace) {
-      continue;
-    }
     // Logic to print our ListSets only if we have valid records. Will only fire
     // once.
     if (!$print_list_set) {
@@ -1277,6 +1291,23 @@ function islandora_oai_list_sets($writer, $args) {
   }
   // Need to close our ListSets element.
   if ($print_list_set) {
+    if ($total_records - $token->deliveredrecords > $max_records) {
+      $token_string = islandora_oai_get_random_token();
+      $delivered_records = (int) $token->deliveredrecords + $max_records;
+
+      db_insert('islandora_oai_tokens')
+        ->fields(array(
+          'id' => $token_string,
+          'deliveredrecords' => $delivered_records,
+          'timestamp' => time(),
+        ))
+        ->execute();
+      islandora_oai_write_token_xml($writer, $total_records, $token->deliveredrecords, $expire_time, $token_string);
+    }
+    // Last delivery, return empty ResumptionToken.
+    elseif (isset($resumption_token)) {
+      islandora_oai_write_token_xml($writer, $total_records, $token->deliveredrecords);
+    }
     $writer->endElement();
   }
   else {

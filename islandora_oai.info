@@ -7,4 +7,5 @@ version = 7.x-dev
 core = 7.x
 package = Islandora
 files[] = includes/admin.form.inc
-
+files[] = tests/islandora_oai_error_handling.test
+files[] = tests/utilities.inc
