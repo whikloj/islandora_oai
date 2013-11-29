@@ -77,7 +77,10 @@ function islandora_oai_parse_request() {
   $writer->endElement();
 
   // Switch on verb and dispatch requests.
-  if (!$repeat_arg) {
+  if (!isset($verb)) {
+    islandora_oai_add_error('noVerb');
+  }
+  elseif (!$repeat_arg) {
     switch ($verb) {
 
       case 'GetRecord':
@@ -102,10 +105,6 @@ function islandora_oai_parse_request() {
 
       case 'ListSets':
         islandora_oai_list_sets($writer, $args);
-        break;
-
-      case '':
-        islandora_oai_add_error('noVerb');
         break;
 
       default:
@@ -327,9 +326,11 @@ function islandora_oai_get_record(&$writer, $args) {
   }
 
   $results = islandora_oai_query_solr(0, 'PID', $identifier);
-  $record = $results['objects'][0];
 
-  if (!$record['PID']) {
+  if ($results['numFound'] > 0) {
+    $record = $results['objects'][0];
+  }
+  else {
     islandora_oai_add_error('idDoesNotExist', '', $identifier);
     return FALSE;
   }
@@ -614,7 +615,13 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
       foreach ($user->roles as $role) {
         $itql_query .= '$child <http://islandora.ca/ontology/relsext#isViewableByRole> ' . "'$role' or ";
       }
-      $itql_query .= '$child <http://islandora.ca/ontology/relsext#isViewableByUser> ' . "'$user->name'" . ')';
+      if ($user->uid === 0) {
+        $user_name = 'anonymous';
+      }
+      else {
+        $user_name = $user->name;
+      }
+      $itql_query .= '$child <http://islandora.ca/ontology/relsext#isViewableByUser> ' . "'$user_name'" . ')';
       $itql_query .= ')
       )
     and
@@ -781,7 +788,6 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec = FALSE) {
   // Resume previous session?
   if (isset($resumption_token)) {
     $token = islandora_oai_get_token($resumption_token);
-    $metadata_prefix = $token->metadata_prefix;
     if (!is_object($token)) {
       return FALSE;
     }
@@ -789,6 +795,7 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec = FALSE) {
       islandora_oai_add_error('badResumptionToken', '', $resumption_token);
       return FALSE;
     }
+    $metadata_prefix = $token->metadata_prefix;
     $query_args = explode('#', $token->queryargs);
     $set = $token->setargs;
     if (isset($query_args) && (!empty($query_args[0]) || !empty($query_args[1]))) {
@@ -1107,12 +1114,10 @@ function islandora_oai_list_metadata_formats(&$writer, $args) {
 
         $connection = islandora_get_tuque_connection();
         $query_results = $connection->repository->ri->itqlQuery($itql_query);
-
         foreach ($query_results as $result) {
           $result_pid = $result['object']['uri'];
         }
-
-        if (!$result_pid == $pid_query) {
+        if (empty($result_pid)) {
           islandora_oai_add_error('idDoesNotExist', 'identifier', $identifier);
           return FALSE;
         }
@@ -1286,8 +1291,6 @@ EOQ;
   }
   // Need to close our ListSets element.
   if ($print_list_set) {
-    $writer->endElement();
-
     if ($total_records - $token->deliveredrecords > $max_records) {
       $token_string = islandora_oai_get_random_token();
       $delivered_records = (int) $token->deliveredrecords + $max_records;
