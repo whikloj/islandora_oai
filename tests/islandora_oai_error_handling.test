@@ -425,7 +425,7 @@ XML;
     }
 
     // Bonus - badVerb using no verb.
-    $xpath = '/oai:OAI-PMH/oai:error[@code="badArgument"]';
+    $xpath = '/oai:OAI-PMH/oai:error[@code="badVerb"]';
     $request = "";
     $results = $this->getXpathFromOAIRequest($request, $xpath);
     if (isset ($results[$xpath][0])) {
@@ -436,7 +436,7 @@ XML;
     }
 
     // Bonus - badVerb using two verbs.
-    $xpath = '/oai:OAI-PMH/oai:error[@code="badArgument"]';
+    $xpath = '/oai:OAI-PMH/oai:error[@code="badVerb"]';
     $request = "verb=Identify&verb=GetRecord";
     $results = $this->getXpathFromOAIRequest($request, $xpath);
     if (isset ($results[$xpath][0])) {
