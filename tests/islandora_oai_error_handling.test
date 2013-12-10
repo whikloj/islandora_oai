@@ -40,6 +40,9 @@ class IslandoraOAIErrorHandlingTestCase extends IslandoraOAIWebTestCase {
     variable_set('islandora_oai_expire_time', '3');
     variable_set('islandora_oai_date_field', 'timestamp');
 
+    $user = $this->drupalCreateUser(array_keys(module_invoke_all('permission')));
+    $this->drupalLogin($user);
+
     // Before anything else, we're going to need a collection in there so that
     // there's more than one object in there for us to 'resume' from when we
     // require resumptionTokens.
@@ -68,7 +71,7 @@ XML;
         'mimetype' => 'text/xml',
       ),
     );
-    $this->ingestConstructedObject($properties);
+    $this->ingestConstructedObject($properties, $datastreams);
 
     // Aight, let's produce some errors! These are sorted in the order they
     // appear in the OAI protocol documentation, section 4, which you can read
@@ -387,5 +390,63 @@ XML;
     else {
       $this->fail("4.6 ListSets - badResumptionToken with expired token: no resumptionToken was found for Xpath query $first_xpath using GET request $first_request", "Islandora");
     }
+
+    // Bonus - badArgument from repeated argument with same parameters.
+    $xpath = '/oai:OAI-PMH/oai:error[@code="badArgument"]';
+    $request = "verb=ListRecords&metadataPrefix=oai_dc&metadataPrefix=oai_dc";
+    $results = $this->getXpathFromOAIRequest($request, $xpath);
+    if (isset ($results[$xpath][0])) {
+      $this->assertEqual((string) $results[$xpath][0], "Do not use the same argument more than once.", "Bonus - badArgument from repeated argument with same parameters: Triggered error by setting metadataPrefix to oai_dc twice.", "Islandora");
+    }
+    else {
+      $this->fail("Bonus - badArgument from repeated argument with same parameters: no results found for Xpath query $xpath using GET request $request", "Islandora");
+    }
+
+    // Bonus - badArgument from repeated metadataPrefix with different prefixes.
+    $xpath = '/oai:OAI-PMH/oai:error[@code="badArgument"]';
+    $request = "verb=ListRecords&metadataPrefix=oai_dc&metadataPrefix=oai_mods";
+    $results = $this->getXpathFromOAIRequest($request, $xpath);
+    if (isset ($results[$xpath][0])) {
+      $this->assertEqual((string) $results[$xpath][0], "Do not use the same argument more than once.", "Bonus - badArgument from repeated metadataPrefix with different prefixes: Triggered error by setting metadataPrefix to oai_dc and oai_mods.", "Islandora");
+    }
+    else {
+      $this->fail("Bonus - badArgument from repeated metadataPrefix with different prefixes: no results found for Xpath query $xpath using GET request $request", "Islandora");
+    }
+
+    // Bonus - badVerb using a fake verb.
+    $xpath = '/oai:OAI-PMH/oai:error[@code="badVerb"]';
+    $request = "verb=Embiggen&verbLexicographicalStatus=PerfectlyCromulent";
+    $results = $this->getXpathFromOAIRequest($request, $xpath);
+    if (isset ($results[$xpath][0])) {
+      $this->assertEqual((string) $results[$xpath][0], "The verb 'Embiggen' provided in the request is illegal.", "Bonus - badVerb using a fake verb: Triggered error by using an illegal verb.", "Islandora");
+    }
+    else {
+      $this->fail("Bonus - badVerb using a fake verb: no results found for Xpath query $xpath using GET request $request", "Islandora");
+    }
+
+    // Bonus - badVerb using no verb.
+    $xpath = '/oai:OAI-PMH/oai:error[@code="badVerb"]';
+    $request = "";
+    $results = $this->getXpathFromOAIRequest($request, $xpath);
+    if (isset ($results[$xpath][0])) {
+      $this->assertEqual((string) $results[$xpath][0], "The request does not provide any verb.", "Bonus - badVerb using no verb: Triggered error by omitting a verb argument.", "Islandora");
+    }
+    else {
+      $this->fail("Bonus - badVerb using no verb: no results found for Xpath query $xpath using GET request $request", "Islandora");
+    }
+
+    // Bonus - badVerb using two verbs.
+    $xpath = '/oai:OAI-PMH/oai:error[@code="badVerb"]';
+    $request = "verb=Identify&verb=GetRecord";
+    $results = $this->getXpathFromOAIRequest($request, $xpath);
+    if (isset ($results[$xpath][0])) {
+      $this->assertEqual((string) $results[$xpath][0], "Cannot have more than one verb in the same request.", "Bonus - badVerb using two verbs: Triggered error by using two verbs.", "Islandora");
+    }
+    else {
+      $this->fail("Bonus - badVerb using two verbs: no results found for Xpath query $xpath using GET request $request", "Islandora");
+    }
+
+    // Let's get rid of that collection from before.
+    $this->deleteObject($pid);
   }
 }
