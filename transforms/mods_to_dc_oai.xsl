@@ -41,10 +41,10 @@ Version 1.0	2007-05-04 Tracy Meehleib <tmee@loc.gov>
 	<xsl:strip-space elements="*"/>
 	<xsl:template match="/">
 		<xsl:choose>
-		<xsl:when test="//mods:modsCollection">
+		<xsl:when test="//mods:mods[1]">
 			<srw_dc:dcCollection xsi:schemaLocation="info:srw/schema/1/dc-schema http://www.loc.gov/standards/sru/dc-schema.xsd">
 				<xsl:apply-templates/>
-			<xsl:for-each select="mods:modsCollection/mods:mods">
+			<xsl:for-each select="//mods:mods[1]/mods:mods">
 				<srw_dc:dc xsi:schemaLocation="info:srw/schema/1/dc-schema http://www.loc.gov/standards/sru/dc-schema.xsd">
 				<xsl:apply-templates/>
 			</srw_dc:dc>
@@ -52,7 +52,7 @@ Version 1.0	2007-05-04 Tracy Meehleib <tmee@loc.gov>
 			</srw_dc:dcCollection>
 		</xsl:when>
 		<xsl:otherwise>
-			<xsl:for-each select="mods:mods">
+			<xsl:for-each select="//mods:mods[1]">
 			<oai_dc:dc xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd">
 				<xsl:apply-templates/>
 			</oai_dc:dc>
