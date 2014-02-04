@@ -1091,8 +1091,12 @@ function islandora_oai_write_token_xml(&$writer, $num_rows, $delivered_records, 
  *   FALSE if the token doesn't exist, the token object otherwise.
  */
 function islandora_oai_get_token($resumption_token) {
-
-  $token_query = db_query("SELECT * FROM {islandora_oai_tokens} WHERE id= :resumptiontoken LIMIT 0,1", array(':resumptiontoken' => $resumption_token))->fetchObject();;
+  $token_query = db_select('islandora_oai_tokens', 'i')
+    ->fields('i', array())
+    ->condition('id', $resumption_token)
+    ->range(0, 1)
+    ->execute()
+    ->fetchObject();
 
   if ($token_query && $token_query->deliveredrecords) {
     return $token_query;
