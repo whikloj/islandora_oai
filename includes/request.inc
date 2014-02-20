@@ -662,11 +662,10 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
           $descendants[] = $walk_set;
         }
       }
+      $descendants[] = $value;
     }
     $walked_sets = $descendants;
 
-    $set = str_replace('_', ':', $set);
-    $walked_sets[] = $set;
     $set_fq = array();
     // We are using OR here to account for fields in Solr that may index
     // just the PID or the entire URI. In the future if performance becomes
