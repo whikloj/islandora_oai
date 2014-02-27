@@ -40,10 +40,10 @@ Version 1.0 2007-05-04 Tracy Meehleib <tmee@loc.gov>
 
 <xsl:template match="/">
 <xsl:choose>
-<xsl:when test="//mods:mods[1]">
+<xsl:when test="//mods:modsCollection">
 <srw_dc:dcCollection xsi:schemaLocation="info:srw/schema/1/dc-schema http://www.loc.gov/standards/sru/dc-schema.xsd">
 <xsl:apply-templates/>
-<xsl:for-each select="//mods:mods[1]/mods:mods">
+<xsl:for-each select="mods:modsCollection/mods:mods">
 <srw_dc:dc xsi:schemaLocation="info:srw/schema/1/dc-schema http://www.loc.gov/standards/sru/dc-schema.xsd">
 <xsl:apply-templates/>
 </srw_dc:dc>
@@ -51,7 +51,7 @@ Version 1.0 2007-05-04 Tracy Meehleib <tmee@loc.gov>
 </srw_dc:dcCollection>
 </xsl:when>
 <xsl:otherwise>
-<xsl:for-each select="//mods:mods[1]">
+<xsl:for-each select="mods:mods">
     <oai_etdms:thesis xmlns="http://www.ndltd.org/standards/metadata/etdms/1.0/" xmlns:oai_etdms="http://www.ndltd.org/standards/metadata/etdms/1.0/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.ndltd.org/standards/metadata/etdms/1.0/ http://www.ndltd.org/standards/metadata/etdms/1.0/etdms.xsd">
         <xsl:call-template name="title"/>
         <xsl:call-template name="creator"/>
