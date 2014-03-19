@@ -283,10 +283,32 @@ XML;
     $request = "verb=ListRecords&metadataPrefix=oai_dc&resumptionToken=whatever";
     $results = $this->getXpathFromOAIRequest($request, $xpath);
     if (isset($results[$xpath][0])) {
-      $this->assertEqual((string) $results[$xpath][0], "The usage of resumptionToken as an argument allows no other arguments.", "4.5 ListRecords badResumptionToken: Triggered error using a resumptionToken in conjunction with other arguments.", "Islandora");
+      $this->assertEqual((string) $results[$xpath][0], "The usage of resumptionToken as an argument allows no other arguments.", "4.5 ListRecords badArgument: Triggered error using a resumptionToken in conjunction with other arguments.", "Islandora");
     }
     else {
       $this->fail("4.5 ListRecords - badArgument using a resumptionToken with other arguments: no results found for Xpath query $xpath using GET request $request", "Islandora");
+    }
+
+    // 4.5 ListRecords - badArgument using invalid 'from' value.
+    $xpath = '/oai:OAI-PMH/oai:error[@code="badArgument"]';
+    $request = "verb=ListRecords&metadataPrefix=oai_dc&from=notevenreal";
+    $results = $this->getXpathFromOAIRequest($request, $xpath);
+    if (isset($results[$xpath][0])) {
+      $this->assertEqual((string) $results[$xpath][0], "The value 'notevenreal' of the argument 'from' is not valid.", "4.5 ListRecords badArgument: Triggered an error applying a non-date to 'from'.", 'Islandora');
+    }
+    else {
+      $this->fail("4.5 ListRecords - badArgument using an invalid 'from' value: no results found for Xpath query $xpath using GET request $request", "Islandora");
+    }
+
+    // 4.5 ListRecords - badArgument using invalid 'until'.
+    $xpath = '/oai:OAI-PMH/oai:error[@code="badArgument"]';
+    $request = "verb=ListRecords&metadataPrefix=oai_dc&until=superfake";
+    $results = $this->getXpathFromOAIRequest($request, $xpath);
+    if (isset($results[$xpath][0])) {
+      $this->assertEqual((string) $results[$xpath][0], "The value 'superfake' of the argument 'until' is not valid.", "4.5 ListRecords badArgument: Triggered an error applying a non-date to 'until'.", 'Islandora');
+    }
+    else {
+      $this->fail("4.5 ListRecords - badArgument using an invalid 'until' value: no results found for Xpath query $xpath using GET request $request", "Islandora");
     }
 
     // 4.5 ListRecords - badResumptionToken with invalid token.
@@ -334,7 +356,7 @@ XML;
       $this->fail("4.5 ListRecords - cannotDisseminateFormat: no results found for Xpath query $xpath using GET request $request", "Islandora");
     }
 
-    // 4.5 ListRecords - noRecordsMatch.
+    // 4.5 ListRecords - noRecordsMatch with invalid set.
     $set = $this->randomName();
     $xpath = '/oai:OAI-PMH/oai:error[@code="noRecordsMatch"]';
     $request = "verb=ListRecords&metadataPrefix=oai_dc&set=$set";
@@ -344,6 +366,17 @@ XML;
     }
     else {
       $this->fail("4.5 ListRecords - noRecordsMatch: no results found for Xpath query $xpath using GET request $request", "Islandora");
+    }
+
+    // 4.5 ListRecords - noRecordsMatch using out-of-range 'from' and 'until'.
+    $xpath = '/oai:OAI-PMH/oai:error[@code="noRecordsMatch"]';
+    $request = "verb=ListRecords&metadataPrefix=oai_dc&from=1000-01-01T00:00:00Z&until=1001-01-01T00:00:00Z";
+    $results = $this->getXpathFromOAIRequest($request, $xpath);
+    if (isset($results[$xpath][0])) {
+      $this->assertEqual((string) $results[$xpath][0], "The combination of the given values results in an empty list.", "4.5 ListRecords noRecordsMatch: Triggered an error using an out-of-range date.", 'Islandora');
+    }
+    else {
+      $this->fail("4.5 ListRecords - noRecordsMatch using an out-of-range 'from' and 'until': no results found for Xpath query $xpath using GET request $request", "Islandora");
     }
 
     // 4.6 ListSets - badArgument.
