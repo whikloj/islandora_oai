@@ -852,7 +852,7 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec = FALSE) {
     }
 
     if (isset($until)) {
-      $solr_until = islandora_oai_datetime_to_solr_time($until);
+      $solr_until = islandora_oai_datetime_to_solr_time($until, TRUE);
     }
     else {
       $solr_until = '*';
@@ -1036,17 +1036,37 @@ function islandora_oai_datetime_to_time($datetime) {
  * @return string
  *   A string representing the time in the given granularity.
  */
-function islandora_oai_datetime_to_solr_time($datetime) {
+function islandora_oai_datetime_to_solr_time($datetime, $until = FALSE) {
   $granularity = islandora_oai_get_date_granularity($datetime);
+  $to_return = $datetime;
 
   switch ($granularity) {
     case 'YYYY-MM-DD':
-      return $datetime . 'T00:00:00Z/DAY';
+      $to_return .= 'T00:00:00Z';
+      if ($until) {
+        $to_return .= '+1DAY-1MILLISECOND';
+      }
+      else {
+        $to_return .= '/DAY';
+      }
+      break;
 
     case 'YYYY-MM-DDThh:mm:ssZ':
-      return $datetime;
+      if ($until) {
+        $to_return .= '+1SECOND-1MILLISECOND';
+      }
+      else {
+        $to_return .= '/SECOND';
+      }
+      break;
 
+    default:
+      // XXX: Maintain original behaviour of returning NULL... Should perhaps
+      // throw an exception? Dunno.
+      return;
   }
+
+  return $to_return;
 }
 
 /**
