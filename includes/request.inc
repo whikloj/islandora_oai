@@ -457,7 +457,8 @@ function islandora_oai_identify(&$writer, $args) {
   $earliest_datestamp = islandora_oai_get_earliest_datetime();
   $writer->startElement('Identify');
   $writer->writeElement('repositoryName', variable_get('islandora_oai_repository_name', 'Repository'));
-  $writer->writeElement('baseURL', variable_get('islandora_oai_path', 'oai2'));
+  $identify_base_url = url(variable_get('islandora_oai_path', 'oai2'), array('absolute' => TRUE));
+  $writer->writeElement('baseURL', $identify_base_url);
   $writer->writeElement('protocolVersion', '2.0');
   $writer->writeElement('adminEmail', variable_get('islandora_oai_admin_email', 'N/A'));
   $writer->writeElement('earliestDatestamp', $earliest_datestamp);
@@ -662,11 +663,10 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
           $descendants[] = $walk_set;
         }
       }
+      $descendants[] = $value;
     }
     $walked_sets = $descendants;
 
-    $set = str_replace('_', ':', $set);
-    $walked_sets[] = $set;
     $set_fq = array();
     // We are using OR here to account for fields in Solr that may index
     // just the PID or the entire URI. In the future if performance becomes
@@ -852,7 +852,7 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec = FALSE) {
     }
 
     if (isset($until)) {
-      $solr_until = islandora_oai_datetime_to_solr_time($until);
+      $solr_until = islandora_oai_datetime_to_solr_time($until, TRUE);
     }
     else {
       $solr_until = '*';
@@ -1036,17 +1036,37 @@ function islandora_oai_datetime_to_time($datetime) {
  * @return string
  *   A string representing the time in the given granularity.
  */
-function islandora_oai_datetime_to_solr_time($datetime) {
+function islandora_oai_datetime_to_solr_time($datetime, $until = FALSE) {
   $granularity = islandora_oai_get_date_granularity($datetime);
+  $to_return = $datetime;
 
   switch ($granularity) {
     case 'YYYY-MM-DD':
-      return $datetime . 'T00:00:00Z/DAY';
+      $to_return .= 'T00:00:00Z';
+      if ($until) {
+        $to_return .= '+1DAY-1MILLISECOND';
+      }
+      else {
+        $to_return .= '/DAY';
+      }
+      break;
 
     case 'YYYY-MM-DDThh:mm:ssZ':
-      return $datetime;
+      if ($until) {
+        $to_return .= '+1SECOND-1MILLISECOND';
+      }
+      else {
+        $to_return .= '/SECOND';
+      }
+      break;
 
+    default:
+      // XXX: Maintain original behaviour of returning NULL... Should perhaps
+      // throw an exception? Dunno.
+      return;
   }
+
+  return $to_return;
 }
 
 /**
@@ -1091,8 +1111,12 @@ function islandora_oai_write_token_xml(&$writer, $num_rows, $delivered_records, 
  *   FALSE if the token doesn't exist, the token object otherwise.
  */
 function islandora_oai_get_token($resumption_token) {
-
-  $token_query = db_query("SELECT * FROM {islandora_oai_tokens} WHERE id= :resumptiontoken LIMIT 0,1", array(':resumptiontoken' => $resumption_token))->fetchObject();;
+  $token_query = db_select('islandora_oai_tokens', 'i')
+    ->fields('i', array())
+    ->condition('id', $resumption_token)
+    ->range(0, 1)
+    ->execute()
+    ->fetchObject();
 
   if ($token_query && $token_query->deliveredrecords) {
     return $token_query;
@@ -1241,9 +1265,9 @@ function islandora_oai_list_sets($writer, $args) {
     $token->extquery = '';
   }
   $sparql_query = <<<EOQ
-SELECT ?object ?title ?created FROM <#ri>
-WHERE
-{
+SELECT ?object ?title ?created
+FROM <#ri>
+WHERE {
   {
     ?object <fedora-model:hasModel> <info:fedora/islandora:collectionCModel>
   }
@@ -1252,36 +1276,34 @@ WHERE
     ?object <fedora-model:hasModel> [<fedora-model:hasModel> <info:fedora/islandora:collectionCModel>]
   }
   ?object <fedora-model:label> ?title ;
-          <fedora-model:createdDate> ?created
-
-EOQ;
-  $xacml_filters = array();
-  if (module_exists('islandora_xacml_api')) {
-    $xacml_statements = islandora_xacml_api_islandora_basic_collection_get_query_statements('view');
-    $sparql_query .= implode(' . ', $xacml_statements);
-    $xacml_filters = islandora_xacml_api_islandora_basic_collection_get_query_filters('view');
-  }
-  $filters = array();
-  $namespace_enforced = FALSE;
-  $namespace_enforced = islandora_islandora_basic_collection_get_query_filters();
-  if ($namespace_enforced) {
-    $filters[] = "FILTER($namespace_enforced)";
-  }
-  if (!empty($xacml_filters)) {
-    $filters[] = "FILTER($xacml_filters)";
-  }
-  $sparql_query .= implode(' ', $filters);
-
-  // Add on the ORDER BY and last } to complete the query.
-  $sparql_query .= <<<EOQ
+          <fedora-model:createdDate> ?created .
+  !optionals
+  !filters
 }
-  ORDER BY ?title
+ORDER BY ?title
 EOQ;
+  $optionals = (array) module_invoke('islandora_xacml_api', 'islandora_basic_collection_get_query_optionals', 'view');
+  $filters = (array) module_invoke('islandora_xacml_api', 'islandora_basic_collection_get_query_filters', 'view');
+  $filters = array_merge_recursive($filters, (array) module_invoke('islandora', 'islandora_basic_collection_get_query_filters', 'view'));
+
+  $filter_map = function ($filter) {
+    return "FILTER($filter)";
+  };
+
+  $sparql_query = format_string($sparql_query, array(
+    '!optionals' => !empty($optionals) ? ('OPTIONAL {{' . implode('} UNION {', $optionals) . '}}') : '',
+    '!filters' => !empty($filters) ? implode(' ', array_map($filter_map, $filters)) : '',
+  ));
+
   $connection = islandora_get_tuque_connection();
   $total_records = $connection->repository->ri->countQuery($sparql_query, 'sparql');
-  $sparql_query .= "
-  LIMIT $max_records
-  OFFSET {$token->deliveredrecords}";
+
+  $sparql_query .= <<<EOQ
+
+LIMIT $max_records
+OFFSET {$token->deliveredrecords}
+EOQ;
+
   $query_results = $connection->repository->ri->sparqlQuery($sparql_query);
   $print_list_set = FALSE;
 
