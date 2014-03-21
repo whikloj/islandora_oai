@@ -565,8 +565,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
     $query_processor->solrParams['fq'][] = $date_query;
   }
 
-  $exclude_content_models = variable_get('islandora_oai_exclude_content_models', '');
-  $exclude_content_models = explode("\n", $exclude_content_models);
+  $exclude_content_models = islandora_oai_get_restricted_models();
   $has_model = variable_get('islandora_oai_content_model_field', 'RELS_EXT_hasModel_uri_ms');
   foreach ($exclude_content_models as $content_model) {
     $content_model = trim($content_model);
@@ -1269,11 +1268,11 @@ SELECT ?object ?title ?created
 FROM <#ri>
 WHERE {
   {
-    ?object <fedora-model:hasModel> <info:fedora/islandora:collectionCModel>
+    ?object <fedora-model:hasModel> ?model
   }
   UNION
   {
-    ?object <fedora-model:hasModel> [<fedora-model:hasModel> <info:fedora/islandora:collectionCModel>]
+    ?object <fedora-model:hasModel> [<fedora-model:hasModel> ?model]
   }
   ?object <fedora-model:label> ?title ;
           <fedora-model:createdDate> ?created .
@@ -1282,9 +1281,27 @@ WHERE {
 }
 ORDER BY ?title
 EOQ;
+
+  $connection = islandora_get_tuque_connection();
+
   $optionals = (array) module_invoke('islandora_xacml_api', 'islandora_basic_collection_get_query_optionals', 'view');
-  $filters = (array) module_invoke('islandora_xacml_api', 'islandora_basic_collection_get_query_filters', 'view');
-  $filters = array_merge_recursive($filters, (array) module_invoke('islandora', 'islandora_basic_collection_get_query_filters', 'view'));
+  $filter_modules = array(
+    'islandora_xacml_api',
+    'islandora',
+  );
+  $filters = array('sameTerm(?model, <info:fedora/islandora:collectionCModel>)');
+  $excluded_models = islandora_oai_get_restricted_models();
+  if (!empty($excluded_models)) {
+    $map_excludes = function ($exclude) {
+      return "sameTerm(?model, <info:fedora/$exclude>)";
+    };
+    $filters[] = format_string('!(!exclude_conjunction)', array(
+      '!exclude_conjunction' => implode(' || ', array_map($map_excludes, $excluded_models)),
+    ));
+  }
+  foreach ($filter_modules as $module) {
+    $filters = array_merge_recursive($filters, (array) module_invoke($module, 'islandora_basic_collection_get_filters', 'view'));
+  }
 
   $filter_map = function ($filter) {
     return "FILTER($filter)";
@@ -1295,7 +1312,6 @@ EOQ;
     '!filters' => !empty($filters) ? implode(' ', array_map($filter_map, $filters)) : '',
   ));
 
-  $connection = islandora_get_tuque_connection();
   $total_records = $connection->repository->ri->countQuery($sparql_query, 'sparql');
 
   $sparql_query .= <<<EOQ
@@ -1349,4 +1365,16 @@ EOQ;
   else {
     islandora_oai_add_error('noSetHierarchy');
   }
+}
+
+/**
+ * Get the restricted/excluded models.
+ *
+ * @return array
+ *   An array of strings representing the models of which objects should not be
+ *   returned from OAI requests.
+ */
+function islandora_oai_get_restricted_models() {
+  $exclude_content_models = variable_get('islandora_oai_exclude_content_models', '');
+  return explode("\n", $exclude_content_models);
 }
