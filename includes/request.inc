@@ -520,7 +520,7 @@ function islandora_oai_get_membership_array() {
   $mini_cache = &drupal_static(__FUNCTION__, array());
 
   if (empty($mini_cache)) {
-    foreach (preg_split('/(\\r?\\n|\\r)+/', variable_get('islandora_oai_collection_field', 'RELS_EXT_isMemberOfCollection_uri_ms\nRELS_EXT_isMemberOf_uri_ms')) as $spec) {
+    foreach (preg_split('/(\\r?\\n|\\r)+/', variable_get('islandora_oai_collection_field', "RELS_EXT_isMemberOfCollection_uri_ms\nRELS_EXT_isMemberOf_uri_ms")) as $spec) {
       $mini_cache[] = trim($spec);
     }
     $mini_cache = array_filter($mini_cache);
