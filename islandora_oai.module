@@ -11,7 +11,7 @@
 function islandora_oai_menu() {
   $items = array();
 
-  $items['admin/islandora/islandora-oai'] = array(
+  $items['admin/islandora/tools/islandora-oai'] = array(
     'title' => 'Islandora OAI',
     'description' => 'Configure the Islandora OAI module',
     'file' => 'includes/admin.form.inc',
@@ -19,7 +19,7 @@ function islandora_oai_menu() {
     'page arguments' => array('islandora_oai_admin_form'),
     'access arguments' => array('access administration pages'),
   );
-  $items['admin/islandora/islandora-oai/configure'] = array(
+  $items['admin/islandora/tools/islandora-oai/configure'] = array(
     'title' => 'Islandora OAI Settings',
     'description' => 'Configure the Islandora OAI module',
     'file' => 'includes/admin.form.inc',
@@ -29,7 +29,7 @@ function islandora_oai_menu() {
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => 0,
   );
-  $items['admin/islandora/islandora-oai/files'] = array(
+  $items['admin/islandora/tools/islandora-oai/files'] = array(
     'title' => 'File Management',
     'description' => 'Manage the upload files for Islandora OAI',
     'file' => 'includes/admin.form.inc',

@@ -51,7 +51,7 @@ Islandora Solr
 INSTALLATION
 ------------
 
-Configure the basic details of the repository through /admin/islandora/islandora-oai
+Configure the basic details of the repository through /admin/islandora/tools/islandora-oai
 
 After you have exposed content types and some fields, your repository is available at /oai2
 
