@@ -25,7 +25,7 @@ Install as usual, see [this](https://drupal.org/documentation/install/modules-th
 
 ## Configuration
 
-Configure the basic details of the repository in Administration » Islandora » Islandora OAI (admin/islandora/islandora-oai).
+Configure the basic details of the repository in Administration » Islandora » Islandora OAI (admin/islandora/tools/islandora-oai).
 
 ![Configuration](http://i.imgur.com/fDCZm5U.png)
 
