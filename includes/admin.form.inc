@@ -303,15 +303,17 @@ function islandora_oai_file_management_form($form, &$form_state) {
  *   An array containing the Drupal form state.
  */
 function islandora_oai_file_management_form_validate($form, $form_state) {
-  $selected = FALSE;
-  foreach ($form_state['values']['table'] as $value) {
-    if ($value !== 0) {
-      $selected = TRUE;
-      break;
+  if (end($form_state['triggering_element']['#parents']) == 'remove_selected') {
+    $selected = FALSE;
+    foreach ($form_state['values']['table'] as $value) {
+      if ($value !== 0) {
+        $selected = TRUE;
+        break;
+      }
     }
-  }
-  if (!$selected) {
-    form_set_error('table', t('Must select at least one entry to delete!'));
+    if (!$selected) {
+      form_set_error('table', t('Must select at least one entry to delete!'));
+    }
   }
 }
 /**
