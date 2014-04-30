@@ -89,11 +89,14 @@ EOQ;
     if (isset($object['DC'])) {
       $description = $object['DC']->content;
     }
-    $records[] = array(
-      'pid' => $result['object']['value'],
+    $pid = $result['object']['value'];
+    $records[$pid] = array(
+      'pid' => $pid,
       'label' => $result['title']['value'],
-      'description' => $description,
     );
+    if ($description) {
+      $records[$pid]['description'] = $description;
+    }
   }
   return array(
     'total_records' => $total_records,

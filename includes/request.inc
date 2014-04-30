@@ -1024,9 +1024,12 @@ function islandora_oai_list_sets($writer, $args) {
     $set_pid = str_replace(':', '_', $result['pid']);
     $writer->writeElement('setSpec', $set_pid);
     $writer->writeElement('setName', $set_name);
-    $writer->startElement('setDescription');
-    $writer->writeRaw($result['description']);
-    $writer->endElement();
+
+    if (isset($result['description'])) {
+      $writer->startElement('setDescription');
+      $writer->writeRaw($result['description']);
+      $writer->endElement();
+    }
     $writer->endElement();
   }
   // Need to close our ListSets element.

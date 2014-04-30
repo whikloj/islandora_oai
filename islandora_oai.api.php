@@ -68,7 +68,7 @@ function hook_islandora_oai_get_xsl_files() {
  *      -records: An array of arrays containing:
  *        -pid: A string representing the PID of the set.
  *        -label: A string containing the label of the set.
- *        -description (optional): A string detailing the set.
+ *        -description (optional): An XML string detailing the set.
  *    -GetRecord: The GetRecord OAI request, params array contains:
  *      -pid: A string representing the PID of the record being requested.
  *    Expected to return FALSE if the record does not exist, otherwise an array
