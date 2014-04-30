@@ -1300,7 +1300,7 @@ EOQ;
     ));
   }
   foreach ($filter_modules as $module) {
-    $filters = array_merge_recursive($filters, (array) module_invoke($module, 'islandora_basic_collection_get_filters', 'view'));
+    $filters = array_merge_recursive($filters, (array) module_invoke($module, 'islandora_basic_collection_get_query_filters', 'view'));
   }
 
   $filter_map = function ($filter) {
