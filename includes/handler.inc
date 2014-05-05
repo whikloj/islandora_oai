@@ -24,63 +24,15 @@
  * @see hook_islandora_oai_identify_request_handler()
  */
 function islandora_oai_retrieve_sets($params) {
-  $sparql_query = <<<EOQ
-  SELECT DISTINCT ?object ?title ?created
-  FROM <#ri>
-  WHERE {
-    {
-      ?object <fedora-model:hasModel> ?model
-    }
-    UNION
-    {
-      ?object <fedora-model:hasModel> [<fedora-model:hasModel> ?model]
-    }
-    ?object <fedora-model:label> ?title ;
-            <fedora-model:createdDate> ?created .
-    !optionals
-    !filters
-  }
-  ORDER BY ?title
-EOQ;
-
   $connection = islandora_get_tuque_connection();
-
-  $optionals = (array) module_invoke('islandora_xacml_api', 'islandora_basic_collection_get_query_optionals', 'view');
-  $filter_modules = array(
-    'islandora_xacml_api',
-    'islandora',
-  );
+  $records = array();
   $filters = array('sameTerm(?model, <info:fedora/islandora:collectionCModel>)');
-  $excluded_models = islandora_oai_get_restricted_models();
-  if (!empty($excluded_models)) {
-    $map_excludes = function ($exclude) {
-      return "sameTerm(?model, <info:fedora/$exclude>)";
-    };
-    $filters[] = format_string('!(!exclude_conjunction)', array(
-      '!exclude_conjunction' => implode(' || ', array_map($map_excludes, $excluded_models)),
-    ));
-  }
-  foreach ($filter_modules as $module) {
-    $filters = array_merge_recursive($filters, (array) module_invoke($module, 'islandora_basic_collection_get_filters', 'view'));
-  }
-
-  $filter_map = function ($filter) {
-    return "FILTER($filter)";
-  };
-
-  $sparql_query = format_string($sparql_query, array(
-    '!optionals' => !empty($optionals) ? ('OPTIONAL {{' . implode('} UNION {', $optionals) . '}}') : '',
-    '!filters' => !empty($filters) ? implode(' ', array_map($filter_map, $filters)) : '',
-  ));
-
+  $sparql_query = islandora_oai_construct_sparql_query_for_sets($filters);
   $total_records = $connection->repository->ri->countQuery($sparql_query, 'sparql');
-
   $sparql_query .= <<<EOQ
-
   LIMIT {$params['max_records']}
   OFFSET {$params['token']->deliveredrecords}
 EOQ;
-  $records = array();
   $query_results = $connection->repository->ri->sparqlQuery($sparql_query);
   module_load_include('inc', 'islandora', 'includes/dublin_core');
   foreach ($query_results as $result) {
@@ -310,6 +262,7 @@ function islandora_oai_construct_record_from_solr_response($solr_object) {
  *   A string representing the time in the given granularity.
  */
 function islandora_oai_datetime_to_solr_time($datetime, $until = FALSE) {
+  module_load_include('inc', 'islandora_oai', 'includes/request');
   $granularity = islandora_oai_get_date_granularity($datetime);
   $to_return = $datetime;
 
@@ -532,5 +485,70 @@ function islandora_oai_get_membership_array() {
  */
 function islandora_oai_get_restricted_models() {
   $exclude_content_models = variable_get('islandora_oai_exclude_content_models', '');
-  return explode("\n", $exclude_content_models);
+  return array_filter(explode("\n", $exclude_content_models));
+}
+
+/**
+ * Helper function to query for sets.
+ *
+ * @param array $filters
+ *   An array of content models to be used as filters.
+ * @param array $required
+ *   An array of arrays containing:
+ *   -vars: An array containing strings of the variables that are referenced
+ *   in the required statements.
+ *   -statements: An array containing string statements pertaining to the
+ *   SPARQL query.
+ *
+ * @return string
+ *   The SPARQL query to be executed.
+ */
+function islandora_oai_construct_sparql_query_for_sets($filters, $required = array()) {
+  $sparql_query = <<<EOQ
+  SELECT DISTINCT ?object ?title ?created !vars
+  FROM <#ri>
+  WHERE {
+    {
+      ?object <fedora-model:hasModel> ?model
+    }
+    UNION
+    {
+      ?object <fedora-model:hasModel> [<fedora-model:hasModel> ?model]
+    }
+     ?object <fedora-model:label> ?title ;
+          <fedora-model:createdDate> ?created .
+    !required
+    !optionals
+    !filters
+  }
+  ORDER BY ?title
+EOQ;
+  $optionals = (array) module_invoke('islandora_xacml_api', 'islandora_basic_collection_get_query_optionals', 'view');
+  $filter_modules = array(
+    'islandora_xacml_api',
+    'islandora',
+  );
+  $excluded_models = islandora_oai_get_restricted_models();
+  if (!empty($excluded_models)) {
+    $map_excludes = function ($exclude) {
+      return "sameTerm(?model, <info:fedora/$exclude>)";
+    };
+    $filters[] = format_string('!(!exclude_conjunction)', array(
+      '!exclude_conjunction' => implode(' || ', array_map($map_excludes, $excluded_models)),
+    ));
+  }
+
+  foreach ($filter_modules as $module) {
+    $filters = array_merge_recursive($filters, (array) module_invoke($module, 'islandora_basic_collection_get_query_filters', 'view'));
+  }
+  $filter_map = function ($filter) {
+    return "FILTER($filter)";
+  };
+  $sparql_query = format_string($sparql_query, array(
+    '!vars' => !empty($required['vars']) ? implode(' ', $required['vars']) : '',
+    '!required' => !empty($required['statements']) ? implode('. ', $required['statements']) : '',
+    '!optionals' => !empty($optionals) ? ('OPTIONAL {{' . implode('} UNION {', $optionals) . '}}') : '',
+    '!filters' => !empty($filters) ? implode(' ', array_map($filter_map, $filters)) : '',
+  ));
+  return $sparql_query;
 }

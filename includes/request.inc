@@ -329,7 +329,6 @@ function islandora_oai_get_record(&$writer, $args) {
         return FALSE;
     }
   }
-
   if (!isset($identifier)) {
     islandora_oai_add_error('missingArgument', 'identifier');
     return FALSE;
