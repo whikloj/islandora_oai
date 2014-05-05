@@ -22,8 +22,8 @@ function hook_islandora_oai_get_xsl_files() {
  *   An associative array containing:
  *   -label: A string describing the handler.
  *   -description: A string describing the request handler.
- *   -configure (optional): A relative menu path to custom configuration for the
- *   handler.
+ *   -configuration (optional): A relative menu path to custom configuration for
+ *   the handler.
  *   -requests: An array containing modifiable requests and function to call.
  *   Each of the requests is considered optional and will always default back
  *   to the generic implementation if not implemented in a custom handler.
@@ -77,7 +77,7 @@ function hook_islandora_oai_get_xsl_files() {
  *      -date: A string date timestamp used to identify the lastModified date
  *      of the record.
  *    More fields may be present to be used by custom handlers defined below
- *    but the former two fields are required for every implementation. *
+ *    but the former two fields are required for every implementation.
  *    -response_xml: Used to construct the individual XML response for a record,
  *    params array contains:
  *      -metadata_prefix: String describing the metadata prefix of the request
