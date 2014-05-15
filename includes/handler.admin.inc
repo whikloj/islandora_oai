@@ -53,7 +53,21 @@ function islandora_oai_handler_configuration_form($form, &$form_state) {
     '#default_value' => variable_get('islandora_oai_exclude_content_models', ''),
     '#description' => t('By default, all objects are visible to OAI metadata harvesters. This field allows you to exclude all objects with a certain content model, e.g "islandora:collectionCModel" to exclude all objects with the Islandora Core Collection content model.'),
   );
-
+  $form['islandora_oai_configuration']['islandora_oai_exclude_islandora_namespace'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Exclude objects within the "islandora" namespace?'),
+    '#default_value' => variable_get('islandora_oai_exclude_islandora_namespace', FALSE),
+    '#description' => t('If this option is selected, note that restrictions within the <a href="@solr_url">Islandora Solr Search</a> module must match up with those within the core <a href="@islandora_url">Islandora</a> module.', array(
+      '@solr_url' => url('admin/islandora/search/islandora_solr/settings'),
+      '@islandora_url' => url('admin/islandora/configure'),
+    )),
+  );
+  if (!variable_get('islandora_namespace_restriction_enforced', FALSE)) {
+    $form['islandora_oai_configuration']['islandora_oai_exclude_islandora_namespace']['#disabled'] = TRUE;
+    $form['islandora_oai_configuration']['islandora_oai_exclude_islandora_namespace']['#description'] = t('Excluding the Islandora namespace is only possible when namespace restrictions are enabled within the <a href="@islandora_url">Islandora</a> module.', array(
+      '@islandora_url' => url('admin/islandora/configure'),
+    ));
+  }
   $metadata_format_options = array();
   $metadata_formats = array();
   $results = db_query('SELECT * FROM {islandora_oai_metadata_formats} ORDER BY name');
@@ -166,6 +180,7 @@ function islandora_oai_handler_configuration_form_submit($form, &$form_state) {
   variable_set('islandora_oai_content_model_field', $form_state['values']['islandora_oai_configuration']['islandora_oai_content_model_field']);
   variable_set('islandora_oai_exclude_content_models', $form_state['values']['islandora_oai_configuration']['islandora_oai_exclude_content_models']);
   variable_set('islandora_oai_date_field', $form_state['values']['islandora_oai_configuration']['islandora_oai_date_field']);
+  variable_set('islandora_oai_exclude_islandora_namespace', $form_state['values']['islandora_oai_configuration']['islandora_oai_exclude_islandora_namespace']);
   foreach ($form_state['values']['islandora_oai_metadata']['islandora_oai_options'] as $key => $value) {
     variable_set($key, $value);
   }

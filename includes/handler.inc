@@ -541,6 +541,16 @@ EOQ;
   foreach ($filter_modules as $module) {
     $filters = array_merge_recursive($filters, (array) module_invoke($module, 'islandora_basic_collection_get_query_filters', 'view'));
   }
+
+  // If the user is choosing to restrict things within the Islandora namespace
+  // the filter needs to be modified as the islandora namespace is always
+  // allowed by default.
+  if (variable_get('islandora_namespace_restriction_enforced', FALSE) && variable_get('islandora_oai_exclude_islandora_namespace', FALSE)) {
+    $current_filter = $filters['islandora_namespace_restrictions'];
+    // The "islandora" namespace will always get added last.
+    $current_filter = str_replace('|islandora', '', $current_filter);
+    $filters['islandora_namespace_restrictions'] = $current_filter;
+  }
   $filter_map = function ($filter) {
     return "FILTER($filter)";
   };
