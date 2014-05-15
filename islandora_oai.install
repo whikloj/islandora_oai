@@ -139,7 +139,6 @@ function islandora_oai_schema() {
  * Implements hook_uninstall().
  */
 function islandora_oai_uninstall() {
-  drupal_uninstall_schema('islandora_oai');
   $upload_path = 'public://islandora_oai_xsls';
   $removal_files = file_scan_directory($upload_path, '/(.*)/');
 
@@ -147,6 +146,19 @@ function islandora_oai_uninstall() {
     @file_delete($file);
   }
   drupal_rmdir($upload_path);
+
+  $variables = array(
+    'islandora_oai_collection_field',
+    'islandora_oai_content_model_field',
+    'islandora_oai_date_field',
+    'islandora_oai_exclude_content_models',
+    'islandora_oai_exclude_islandora_namespace',
+    'islandora_oai_metadata_datastream_id_oai_dc',
+    'islandora_oai_metadata_datastream_id_oai_etdms',
+    'islandora_oai_transform_file_oai_dc',
+    'islandora_oai_transform_file_oai_etdms',
+  );
+  array_walk($variables, 'variable_del');
 }
 
 /**

@@ -546,10 +546,14 @@ EOQ;
   // the filter needs to be modified as the islandora namespace is always
   // allowed by default.
   if (variable_get('islandora_namespace_restriction_enforced', FALSE) && variable_get('islandora_oai_exclude_islandora_namespace', FALSE)) {
-    $current_filter = $filters['islandora_namespace_restrictions'];
-    // The "islandora" namespace will always get added last.
-    $current_filter = str_replace('|islandora', '', $current_filter);
-    $filters['islandora_namespace_restrictions'] = $current_filter;
+    module_load_include('inc', 'islandora', 'includes/utilities');
+    // This is somewhat of duplicated code but needs to be done so we remove
+    // only the "islandora" namespace.
+    $namespace_array = islandora_get_allowed_namespaces();
+    $key = array_keys($namespace_array, 'islandora');
+    $namespace_array = array_diff_key($namespace_array, array_flip($key));
+    $namespace_sparql = implode('|', $namespace_array);
+    $filters['islandora_namespace_restrictions'] = format_string('regex(str(?object), "info:fedora/(!namespaces):")', array('!namespaces' => $namespace_sparql));
   }
   $filter_map = function ($filter) {
     return "FILTER($filter)";
