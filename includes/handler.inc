@@ -541,6 +541,20 @@ EOQ;
   foreach ($filter_modules as $module) {
     $filters = array_merge_recursive($filters, (array) module_invoke($module, 'islandora_basic_collection_get_query_filters', 'view'));
   }
+
+  // If the user is choosing to restrict things within the Islandora namespace
+  // the filter needs to be modified as the islandora namespace is always
+  // allowed by default.
+  if (variable_get('islandora_namespace_restriction_enforced', FALSE) && variable_get('islandora_oai_exclude_islandora_namespace', FALSE)) {
+    module_load_include('inc', 'islandora', 'includes/utilities');
+    // This is somewhat of duplicated code but needs to be done so we remove
+    // only the "islandora" namespace.
+    $namespace_array = islandora_get_allowed_namespaces();
+    $key = array_keys($namespace_array, 'islandora');
+    $namespace_array = array_diff_key($namespace_array, array_flip($key));
+    $namespace_sparql = implode('|', $namespace_array);
+    $filters['islandora_namespace_restrictions'] = format_string('regex(str(?object), "info:fedora/(!namespaces):")', array('!namespaces' => $namespace_sparql));
+  }
   $filter_map = function ($filter) {
     return "FILTER($filter)";
   };
