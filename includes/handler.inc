@@ -99,6 +99,9 @@ function islandora_oai_object_response_xml($params) {
       }
     }
     else {
+      // Need to potentially remove the header information from the XML as
+      // the response is embedded within XML.
+      $content = str_replace('<?xml version="1.0" encoding="UTF-8"?>', '', $content);
       $oai_output = $content;
     }
   }
@@ -107,7 +110,7 @@ function islandora_oai_object_response_xml($params) {
   if (empty($oai_output) && isset($object[$param])) {
     watchdog('islandora_oai', 'The pid @pidname failed to transform on the @datastream datastream with the file @file.',
       array(
-        '@pidname' => $params['record'],
+        '@pidname' => $params['pid'],
         '@file' => $file,
         '@datastream' => $param,
       ), WATCHDOG_ERROR);
@@ -116,7 +119,7 @@ function islandora_oai_object_response_xml($params) {
   elseif (!isset($object[$param])) {
     watchdog('islandora_oai', "The pid @pidname failed to transform on the @datastream datastream as the datastream doesn't exist.",
       array(
-        '@pidname' => $params['record'],
+        '@pidname' => $params['pid'],
         '@datastream' => $param,
       ), WATCHDOG_ERROR);
   }

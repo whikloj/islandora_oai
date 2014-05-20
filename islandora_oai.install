@@ -32,6 +32,17 @@ function islandora_oai_install() {
     'record_namespace' => 'http://www.ndltd.org/standards/metadata/etdms/1.0/',
   ))
   ->execute();
+
+  db_insert('islandora_oai_metadata_formats')
+    ->fields(array(
+      'name' => 'mods',
+      'metadata_prefix' => 'mods',
+      'oai2_schema' => 'http://www.loc.gov/standards/mods/v3/mods-3-4.xsd',
+      'metadata_namespace' => 'http://www.loc.gov/mods/v3',
+      'record_prefix' => 'mods',
+      'record_namespace' => 'http://www.loc.gov/mods/v3',
+    ))
+    ->execute();
 }
 
 /**
@@ -172,4 +183,20 @@ function islandora_oai_update_7100(&$sandbox) {
   if (db_table_exists('oai2_metadata_formats')) {
     db_rename_table('oai2_metadata_formats', 'islandora_oai_metadata_formats');
   }
+}
+
+/**
+ * Add support for MODS.
+ */
+function islandora_oai_update_7101(&$sandbox) {
+  db_insert('islandora_oai_metadata_formats')
+    ->fields(array(
+      'name' => 'mods',
+      'metadata_prefix' => 'mods',
+      'oai2_schema' => 'http://www.loc.gov/standards/mods/v3/mods-3-4.xsd',
+      'metadata_namespace' => 'http://www.loc.gov/mods/v3',
+      'record_prefix' => 'mods',
+      'record_namespace' => 'http://www.loc.gov/mods/v3',
+    ))
+    ->execute();
 }
