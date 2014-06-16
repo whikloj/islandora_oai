@@ -84,6 +84,26 @@ function islandora_oai_object_response_xml($params) {
   $oai_output = NULL;
 
   if (!empty($content)) {
+    $self_transform_file = variable_get("islandora_oai_self_transform_file_{$params['metadata_prefix']}", 'default');
+    if ($self_transform_file != 'default') {
+      $self_xslt = new XSLTProcessor();
+      $self_xsl = new DOMDocument();
+      $self_xsl->load($self_transform_file);
+      $self_input = new DOMDocument();
+
+      $url = url("islandora/object/{$object->id}", array(
+        'absolute' => TRUE,
+        // To avoid potentially adding language prefixes.
+        'language' => NULL,
+        ));
+
+      $self_input->loadXML($content);
+      $self_xslt->importStylesheet($self_xsl);
+      $self_xslt->setParameter('', 'resource_url', $url);
+
+      $content = $self_xslt->transformToXML($self_input);
+    }
+
     $xslt = new XSLTProcessor();
     $xsl = new DOMDocument();
     $file = variable_get("islandora_oai_transform_file_{$params['metadata_prefix']}", 'default');
@@ -105,7 +125,6 @@ function islandora_oai_object_response_xml($params) {
       $oai_output = $content;
     }
   }
-
   // Transformation fails.
   if (empty($oai_output) && isset($object[$param])) {
     watchdog('islandora_oai', 'The pid @pidname failed to transform on the @datastream datastream with the file @file.',
@@ -204,7 +223,7 @@ function islandora_oai_retrieve_records_or_identifiers($params) {
   $query = NULL;
   $date_query = NULL;
 
-  if ($from|| $until) {
+  if ($from || $until) {
     $field = variable_get('islandora_oai_date_field', 'fgs_lastModifiedDate_dt');
 
     if ($from) {
@@ -458,7 +477,6 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   }
   return $solr_results;
 }
-
 
 /**
  * Returns the collection fields defined in the admin page in array format.

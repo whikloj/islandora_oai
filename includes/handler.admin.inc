@@ -102,6 +102,7 @@ function islandora_oai_handler_configuration_form($form, &$form_state) {
 
   foreach ($metadata_formats as $format) {
     $default_transform = variable_get("islandora_oai_transform_file_$format->name", 'default');
+    $default_self_transform = variable_get("islandora_oai_self_transform_file_$format->name", 'default');
     $form['islandora_oai_metadata'][$format->name]['islandora_oai_metadata_prefix'] = array(
       '#type' => 'item',
       '#title' => t('Metadata Prefix'),
@@ -153,6 +154,19 @@ function islandora_oai_handler_configuration_form($form, &$form_state) {
       '#options' => $transform_options,
       '#default_value' => $default_transform,
       '#description' => t('XSL or XSLT file used to translate existing metadata to an appropriate OAI-PMH format.'),
+      '#states' => array(
+        'visible' => array(
+          ':input[name="islandora_oai_metadata_format"]' => array('value' => $format->name),
+        ),
+      ),
+    );
+
+    $form['islandora_oai_metadata']['islandora_oai_options']["islandora_oai_self_transform_file_$format->metadata_prefix"] = array(
+      '#type' => 'select',
+      '#title' => t('File to use for self transforming @metadata_prefix', array('@metadata_prefix' => $format->metadata_prefix)),
+      '#options' => $transform_options,
+      '#default_value' => $default_self_transform,
+      '#description' => t('XSL or XSLT file used to transform xml prior transforming to an appropriate OAI-PMH format.'),
       '#states' => array(
         'visible' => array(
           ':input[name="islandora_oai_metadata_format"]' => array('value' => $format->name),
