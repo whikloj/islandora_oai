@@ -82,7 +82,6 @@ function islandora_oai_object_response_xml($params) {
   }
 
   $oai_output = NULL;
-
   if (!empty($content)) {
     $self_transform_file = variable_get("islandora_oai_self_transform_file_{$params['metadata_prefix']}", 'default');
     if ($self_transform_file != 'default') {
@@ -90,16 +89,12 @@ function islandora_oai_object_response_xml($params) {
       $self_xsl = new DOMDocument();
       $self_xsl->load($self_transform_file);
       $self_input = new DOMDocument();
-
-      $url = url("islandora/object/{$object->id}", array(
-        'absolute' => TRUE,
-        // To avoid potentially adding language prefixes.
-        'language' => NULL,
-        ));
-
       $self_input->loadXML($content);
       $self_xslt->importStylesheet($self_xsl);
-      $self_xslt->setParameter('', 'resource_url', $url);
+      $self_transform_params = module_invoke_all('islandora_oai_self_transform_params', $object, $params['metadata_prefix']);
+      foreach ($self_transform_params as $param) {
+        $self_xslt->setParameter('', $param['name'], $param['value']);
+      }
 
       $content = $self_xslt->transformToXML($self_input);
     }

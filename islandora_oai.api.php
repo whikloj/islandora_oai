@@ -130,3 +130,18 @@ function hook_islandora_oai_identify_request_handler() {
     ),
   );
 }
+
+/**
+ * Get module supplied XSLT params for self transform.
+ *
+ * * @param AbstractObject $object
+ *   The object being called for the OAI request
+ *
+  * @param string $metadata_prefix
+ *   The handler metadata prefix for the request.
+ *
+ * @return array
+ *   Returns an array containing params to be passed to the XSLT transform.
+ */
+function hook_islandora_oai_self_transform_params($object, $metadata_prefix) {
+}
