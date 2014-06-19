@@ -72,9 +72,6 @@ EOQ;
  * @see hook_islandora_oai_identify_request_handler()
  */
 function islandora_oai_object_response_xml($params) {
-  dsm($params, 'params');
-  dsm($params['metadata_prefix']);
-  $metadata_prefix = $params['metadata_prefix'];
   $object = islandora_object_load($params['pid']);
   $param = variable_get("islandora_oai_metadata_datastream_id_{$params['metadata_prefix']}", 'DC');
   if (isset($object[$param])) {
