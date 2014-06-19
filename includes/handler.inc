@@ -92,8 +92,8 @@ function islandora_oai_object_response_xml($params) {
       $self_input->loadXML($content);
       $self_xslt->importStylesheet($self_xsl);
       $self_transform_params = module_invoke_all('islandora_oai_self_transform_params', $object, $params['metadata_prefix']);
-      foreach ($self_transform_params as $param) {
-        $self_xslt->setParameter('', $param['name'], $param['value']);
+      foreach ($self_transform_params as $namespace_uri => $params) {
+        $self_xslt->setParameter($namespace_uri, $params);
       }
 
       $content = $self_xslt->transformToXML($self_input);
