@@ -72,6 +72,9 @@ EOQ;
  * @see hook_islandora_oai_identify_request_handler()
  */
 function islandora_oai_object_response_xml($params) {
+  dsm($params, 'params');
+  dsm($params['metadata_prefix']);
+  $metadata_prefix = $params['metadata_prefix'];
   $object = islandora_object_load($params['pid']);
   $param = variable_get("islandora_oai_metadata_datastream_id_{$params['metadata_prefix']}", 'DC');
   if (isset($object[$param])) {
@@ -92,8 +95,8 @@ function islandora_oai_object_response_xml($params) {
       $self_input->loadXML($content);
       $self_xslt->importStylesheet($self_xsl);
       $self_transform_params = module_invoke_all('islandora_oai_self_transform_params', $object, $params['metadata_prefix']);
-      foreach ($self_transform_params as $namespace_uri => $params) {
-        $self_xslt->setParameter($namespace_uri, $params);
+      foreach ($self_transform_params as $namespace_uri => $transform_params) {
+        $self_xslt->setParameter($namespace_uri, $transform_params);
       }
 
       $content = $self_xslt->transformToXML($self_input);
