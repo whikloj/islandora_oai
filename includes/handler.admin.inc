@@ -51,7 +51,7 @@ function islandora_oai_handler_configuration_form($form, &$form_state) {
     '#title' => t('Excluded Content Models'),
     '#size' => '50',
     '#default_value' => variable_get('islandora_oai_exclude_content_models', ''),
-    '#description' => t('By default, all objects are visible to OAI metadata harvesters. This field allows you to exclude all objects with a certain content model, e.g "islandora:collectionCModel" to exclude all objects with the Islandora Core Collection content model.'),
+    '#description' => t('By default, all objects are visible to OAI metadata harvesters. This field allows you to exclude all objects with a certain content model, e.g "islandora:collectionCModel" to exclude all objects with the Islandora Core Collection content model. Content models are separated by line. NOTE: If islandora:collectionCModel is added, it will break the ListSets verb.'),
   );
   $form['islandora_oai_configuration']['islandora_oai_exclude_islandora_namespace'] = array(
     '#type' => 'checkbox',
