@@ -164,6 +164,7 @@ function islandora_oai_uninstall() {
     'islandora_oai_date_field',
     'islandora_oai_exclude_content_models',
     'islandora_oai_exclude_islandora_namespace',
+    'islandora_oai_append_dc_thumbnail',
     'islandora_oai_metadata_datastream_id_oai_dc',
     'islandora_oai_metadata_datastream_id_oai_etdms',
     'islandora_oai_transform_file_oai_dc',

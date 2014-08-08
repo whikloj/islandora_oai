@@ -120,6 +120,18 @@ function islandora_oai_object_response_xml($params) {
       $oai_output = $content;
     }
   }
+  // Jam the dc.identifier.thumbnail into the OAI_DC output.
+  if (isset($object['TN']) && variable_get('islandora_oai_append_dc_thumbnail', FALSE) && $params['metadata_prefix'] == 'oai_dc' && !empty($oai_output)) {
+    $thumb_url = url("islandora/object/{$object}/datastream/TN/view/{$object->label}.jpg", array(
+      'absolute' => TRUE,
+      'language' => NULL,
+    ));
+    $dom = new DOMDocument();
+    $dom->loadXML($oai_output);
+    $dom->documentElement->appendChild($dom->createElementNS('http://purl.org/dc/elements/1.1/', 'dc:identifier.thumbnail', $thumb_url));
+    $oai_output = $dom->saveXML($dom->documentElement);
+
+  }
   // Transformation fails.
   if (empty($oai_output) && isset($object[$param])) {
     watchdog('islandora_oai', 'The pid @pidname failed to transform on the @datastream datastream with the file @file.',
