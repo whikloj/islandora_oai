@@ -158,6 +158,26 @@ function islandora_oai_uninstall() {
   }
   drupal_rmdir($upload_path);
 
+  $metadata_formats = array();
+  $results = db_query('SELECT metadata_prefix FROM {islandora_oai_metadata_formats} ORDER BY name');
+  foreach ($results as $row) {
+    $metadata_formats[] = $row->metadata_prefix;
+  }
+  $variable_variables = array(
+    'islandora_oai_metadata_datastream_id_!format',
+    'islandora_oai_transform_file_!format',
+    'islandora_oai_self_transform_file_!format',
+    'islandora_oai_include_object_links_for_!format',
+    'islandora_oai_object_links_for_!format_xpath',
+    'islandora_oai_object_links_for_!format_field',
+    'islandora_oai_object_links_for_!format_record_namespace',
+  );
+  foreach ($metadata_formats as $metadata_prefix) {
+    foreach ($variable_variables as $var) {
+      $field = format_string($var, array('!format' => $metadata_prefix));
+      variable_del($field);
+    }
+  }
   $variables = array(
     'islandora_oai_collection_field',
     'islandora_oai_content_model_field',
@@ -165,10 +185,6 @@ function islandora_oai_uninstall() {
     'islandora_oai_exclude_content_models',
     'islandora_oai_exclude_islandora_namespace',
     'islandora_oai_append_dc_thumbnail',
-    'islandora_oai_metadata_datastream_id_oai_dc',
-    'islandora_oai_metadata_datastream_id_oai_etdms',
-    'islandora_oai_transform_file_oai_dc',
-    'islandora_oai_transform_file_oai_etdms',
   );
   array_walk($variables, 'variable_del');
 }
