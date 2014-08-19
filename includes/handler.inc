@@ -121,8 +121,8 @@ function islandora_oai_object_response_xml($params) {
     }
   }
   // Jam the dc.identifier.thumbnail into the OAI_DC output.
-  if (isset($object['TN']) && variable_get('islandora_oai_append_dc_thumbnail', FALSE) && $params['metadata_prefix'] == 'oai_dc' && !empty($oai_output)) {
-    $thumb_url = url("islandora/object/{$object}/datastream/TN/view/{$object->label}.jpg", array(
+  if (isset($object['TN']) && variable_get('islandora_oai_append_dc_thumbnail', FALSE) && $params['metadata_prefix'] == 'oai_dc' && !empty($oai_output) && islandora_datastream_access(ISLANDORA_VIEW_OBJECTS, $object['TN'])) {
+    $thumb_url = url("islandora/object/{$object->id}/datastream/TN/view/{$object->label}.jpg", array(
       'absolute' => TRUE,
       'language' => NULL,
     ));
@@ -139,7 +139,7 @@ function islandora_oai_object_response_xml($params) {
     $results = db_query('SELECT * FROM {islandora_oai_metadata_formats} WHERE metadata_prefix = :metadata_prefix', array(':metadata_prefix' => $params['metadata_prefix']));
     $record = $results->fetchObject();
 
-    $object_url = url("islandora/object/{$object}", array(
+    $object_url = url("islandora/object/{$object->id}", array(
       'absolute' => TRUE,
       'language' => NULL,
     ));
