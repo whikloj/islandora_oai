@@ -39,6 +39,12 @@ Some example requests are as follows:
 * `*/oai2?verb=GetRecord&metadataPrefix=oai_dc&identifier=PID`
 * `*/oai2?verb=ListRecords&metadataPrefix=oai_dc`
 
+Services like WorldCat expect links back to the object such as a Handle URL. If your metadata doesn't have this there are two approaches that can be used. Self transforming XSLTs can be used to add specific elements tailored to individual needs. However, there is options in configuration to append on URL values to the XML output of OAI. Each metadata prefix has an individual set of configuration. If selected, a user can define where the object URL will get appended in the output returned.
+
+Similarily, OCLC's Digital Collection Gateway can take advatange of thumbnail URLs for rendering. This option is only currently available for oai_dc requests. If selected, a URL to the object's thumbnail will be added as a <dc:identifier.thumbnail> if the object has a thumbnail.
+
+If existing content has already been harvested and/or the url and thumbnail are not mapping in Digital Collection Gateway, you will need to map those manually in the 'Metadata Map' for a given collection/set.
+
 ### Customization
 
 By default the vanilla islandora_oai module provides a very basic output. It is possible to add additional content to the description field of the repository. This includes pointing at other harvesters and repositories, branding information etc. An example of how to implement these can be referenced in the [6.x version of the module](https://github.com/Islandora/islandora_oai/blob/6.x/islandora_oai.module#L534-L604).

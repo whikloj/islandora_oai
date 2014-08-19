@@ -120,6 +120,72 @@ function islandora_oai_object_response_xml($params) {
       $oai_output = $content;
     }
   }
+  // Jam the dc.identifier.thumbnail into the OAI_DC output.
+  if (isset($object['TN']) && variable_get('islandora_oai_append_dc_thumbnail', FALSE) && $params['metadata_prefix'] == 'oai_dc' && !empty($oai_output) && islandora_datastream_access(ISLANDORA_VIEW_OBJECTS, $object['TN'])) {
+    $thumb_url = url("islandora/object/{$object->id}/datastream/TN/view/{$object->label}.jpg", array(
+      'absolute' => TRUE,
+      'language' => NULL,
+    ));
+    $dom = new DOMDocument();
+    $dom->loadXML($oai_output);
+    $dom->documentElement->appendChild($dom->createElementNS('http://purl.org/dc/elements/1.1/', 'dc:identifier.thumbnail', $thumb_url));
+    $oai_output = $dom->saveXML($dom->documentElement);
+  }
+
+  if (variable_get("islandora_oai_include_object_links_for_{$params['metadata_prefix']}", FALSE) && !empty($oai_output)) {
+    // See if we need to XPath to a specific spot to add it.
+    $dom = new DOMDocument();
+    $dom->loadXML($oai_output);
+    $results = db_query('SELECT * FROM {islandora_oai_metadata_formats} WHERE metadata_prefix = :metadata_prefix', array(':metadata_prefix' => $params['metadata_prefix']));
+    $record = $results->fetchObject();
+
+    $object_url = url("islandora/object/{$object->id}", array(
+      'absolute' => TRUE,
+      'language' => NULL,
+    ));
+    $xpath = variable_get("islandora_oai_object_links_for_{$params['metadata_prefix']}_xpath", '');
+    $field = variable_get("islandora_oai_object_links_for_{$params['metadata_prefix']}_field", '');
+    $record_namespace = variable_get("islandora_oai_object_links_for_{$params['metadata_prefix']}_record_namespace", FALSE);
+
+    if ($xpath) {
+      $dom_xpath = new DOMXPath($dom);
+      $dom_xpath->registerNamespace($record->record_prefix, $record->record_namespace);
+      $dom_xpath->registerNamespace($record->metadata_prefix, $record->metadata_namespace);
+      $elements = $dom_xpath->query($xpath);
+      if ($elements->length == 0) {
+        watchdog('islandora_oai', 'Unable to append object URL as could not find the element to XPath to for @pid. Error information: Metadata Prefix: @prefix, XPath: @xpath', array(
+          '@pid' => $object->id,
+          '@prefix' => $params['metadata_prefix'],
+          '@xpath' => $xpath,
+        ));
+      }
+      else {
+        // If there's more than one element we'll just append to the first.
+        foreach ($elements as $element) {
+          if ($record_namespace) {
+            $link_element = $dom->createElementNS($record->record_namespace, "{$record->record_prefix}:{$field}", $object_url);
+          }
+          else {
+            $link_element = $dom->createElement($field, $object_url);
+          }
+          $element->appendChild($link_element);
+          $oai_output = $dom->saveXML($dom->documentElement);
+          break;
+        }
+      }
+    }
+    else {
+      if ($record_namespace) {
+        $link_element = $dom->createElementNS($record->record_namespace, "{$record->record_prefix}:{$field}", $object_url);
+      }
+      else {
+        $link_element = $dom->createElement("$field", $object_url);
+      }
+      $dom->documentElement->appendChild($link_element);
+      $oai_output = $dom->saveXML($dom->documentElement);
+    }
+  }
+
   // Transformation fails.
   if (empty($oai_output) && isset($object[$param])) {
     watchdog('islandora_oai', 'The pid @pidname failed to transform on the @datastream datastream with the file @file.',

@@ -62,6 +62,12 @@ function islandora_oai_handler_configuration_form($form, &$form_state) {
       '@islandora_url' => url('admin/islandora/configure'),
     )),
   );
+  $form['islandora_oai_configuration']['islandora_oai_append_dc_thumbnail'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Append on dc.identifier.thumbnail to OAI_DC requests?'),
+    '#default_value' => variable_get('islandora_oai_append_dc_thumbnail', FALSE),
+    '#description' => t("If this option is selected, a link to an object's thumbnail will be added to OAI_DC responses."),
+  );
   if (!variable_get('islandora_namespace_restriction_enforced', FALSE)) {
     $form['islandora_oai_configuration']['islandora_oai_exclude_islandora_namespace']['#disabled'] = TRUE;
     $form['islandora_oai_configuration']['islandora_oai_exclude_islandora_namespace']['#description'] = t('Excluding the Islandora namespace is only possible when namespace restrictions are enabled within the <a href="@islandora_url">Islandora</a> module.', array(
@@ -136,6 +142,53 @@ function islandora_oai_handler_configuration_form($form, &$form_state) {
         ),
       ),
     );
+    $form['islandora_oai_metadata'][$format->metadata_prefix]["islandora_oai_include_object_links_for_$format->metadata_prefix"] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Force include a link to the object within Islandora?'),
+      '#description' => t('This is used in cases where metadata may not have links or Handles that point back to the object in the repository. Services like WorldCat expect a linkback to the object. This functionality can be achieved using XSLTs as well.'),
+      '#states' => array(
+        'visible' => array(
+          ':input[name="islandora_oai_metadata_format"]' => array('value' => $format->name),
+        ),
+      ),
+      '#default_value' => variable_get("islandora_oai_include_object_links_for_$format->metadata_prefix", FALSE),
+    );
+    $form['islandora_oai_metadata'][$format->metadata_prefix]["islandora_oai_object_links_for_{$format->metadata_prefix}_xpath"] = array(
+      '#type' => 'textfield',
+      '#title' => t('XPath'),
+      '#description' => t('Optionally include an XPath to append the link under. Leave empty to append under the root element.'),
+      '#states' => array(
+        'visible' => array(
+          ':input[name="islandora_oai_metadata_format"]' => array('value' => $format->name),
+          ":input[name='islandora_oai_metadata[{$format->metadata_prefix}][islandora_oai_include_object_links_for_{$format->metadata_prefix}]']" => array('checked' => TRUE),
+        ),
+      ),
+      '#default_value' => variable_get("islandora_oai_object_links_for_{$format->metadata_prefix}_xpath", ''),
+    );
+    $form['islandora_oai_metadata'][$format->metadata_prefix]["islandora_oai_object_links_for_{$format->metadata_prefix}_field"] = array(
+      '#type' => 'textfield',
+      '#title' => t('Field'),
+      '#description' => t('The name of the field to append the link into. Ex: For dc:identifier, just enter identifier.'),
+      '#states' => array(
+        'visible' => array(
+          ':input[name="islandora_oai_metadata_format"]' => array('value' => $format->name),
+          ":input[name='islandora_oai_metadata[{$format->metadata_prefix}][islandora_oai_include_object_links_for_{$format->metadata_prefix}]']" => array('checked' => TRUE),
+        ),
+      ),
+      '#default_value' => variable_get("islandora_oai_object_links_for_{$format->metadata_prefix}_field", ''),
+    );
+    $form['islandora_oai_metadata'][$format->metadata_prefix]["islandora_oai_object_links_for_{$format->metadata_prefix}_record_namespace"] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Include record namespace?'),
+      '#description' => t('This will include the record namespace and prefix for the field listed above. If the default namespace is declared in your metadata avoid using this.'),
+      '#states' => array(
+        'visible' => array(
+          ':input[name="islandora_oai_metadata_format"]' => array('value' => $format->name),
+          ":input[name='islandora_oai_metadata[{$format->metadata_prefix}][islandora_oai_include_object_links_for_{$format->metadata_prefix}]']" => array('checked' => TRUE),
+        ),
+      ),
+      '#default_value' => variable_get("islandora_oai_object_links_for_{$format->metadata_prefix}_record_namespace", FALSE),
+    );
     $form['islandora_oai_metadata']['islandora_oai_options']["islandora_oai_metadata_datastream_id_$format->metadata_prefix"] = array(
       '#type' => 'textfield',
       '#size' => 30,
@@ -182,6 +235,30 @@ function islandora_oai_handler_configuration_form($form, &$form_state) {
 }
 
 /**
+ * Validation for the handler configuration form.
+ *
+ * @param array $form
+ *   An array representing a Drupal form.
+ * @param array $form_state
+ *   An array containing the Drupal form state.
+ */
+function islandora_oai_handler_configuration_form_validate($form, &$form_state) {
+  $metadata_formats = array();
+  $results = db_query('SELECT metadata_prefix FROM {islandora_oai_metadata_formats}');
+  foreach ($results as $row) {
+    $metadata_formats[$row->metadata_prefix] = $row->metadata_prefix;
+  }
+  foreach ($metadata_formats as $format) {
+    if ($form_state['values']['islandora_oai_metadata'][$format]["islandora_oai_include_object_links_for_{$format}"]) {
+      $field = trim($form_state['values']['islandora_oai_metadata'][$format]["islandora_oai_object_links_for_{$format}_field"]);
+      if (empty($field)) {
+        form_error($form['islandora_oai_metadata'][$format]["islandora_oai_object_links_for_{$format}_field"], t('The field must not be empty.'));
+      }
+    }
+  }
+}
+
+/**
  * Submit handler for the handler configuration form.
  *
  * @param array $form
@@ -195,8 +272,21 @@ function islandora_oai_handler_configuration_form_submit($form, &$form_state) {
   variable_set('islandora_oai_exclude_content_models', $form_state['values']['islandora_oai_configuration']['islandora_oai_exclude_content_models']);
   variable_set('islandora_oai_date_field', $form_state['values']['islandora_oai_configuration']['islandora_oai_date_field']);
   variable_set('islandora_oai_exclude_islandora_namespace', $form_state['values']['islandora_oai_configuration']['islandora_oai_exclude_islandora_namespace']);
+  variable_set('islandora_oai_append_dc_thumbnail', $form_state['values']['islandora_oai_configuration']['islandora_oai_append_dc_thumbnail']);
+  // Loop through our transform options.
   foreach ($form_state['values']['islandora_oai_metadata']['islandora_oai_options'] as $key => $value) {
     variable_set($key, $value);
+  }
+  // Loop through object linking.
+  $metadata_formats = array();
+  $results = db_query('SELECT metadata_prefix FROM {islandora_oai_metadata_formats}');
+  foreach ($results as $row) {
+    $metadata_formats[$row->metadata_prefix] = $row->metadata_prefix;
+  }
+  foreach ($metadata_formats as $format) {
+    foreach ($form_state['values']['islandora_oai_metadata'][$format] as $key => $value) {
+      variable_set($key, trim($value));
+    }
   }
   drupal_set_message(t('The configuration options have been saved.'));
 }
