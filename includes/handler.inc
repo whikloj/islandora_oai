@@ -590,8 +590,7 @@ function islandora_oai_construct_sparql_query_for_sets($filters, $required = arr
   SELECT DISTINCT ?object ?title ?created !vars
   FROM <#ri>
   WHERE {
-    ?object <fedora-model:hasModel> <info:fedora/islandora:collectionCModel> ;
-            <fedora-model:hasModel> ?model ;
+    ?object <fedora-model:hasModel> ?model ;
             <fedora-model:label> ?title ;
             <fedora-model:createdDate> ?created .
     !required
