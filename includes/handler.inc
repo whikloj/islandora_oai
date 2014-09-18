@@ -567,7 +567,9 @@ function islandora_oai_get_membership_array() {
  */
 function islandora_oai_get_restricted_models() {
   $exclude_content_models = variable_get('islandora_oai_exclude_content_models', '');
-  return array_filter(explode("\n", $exclude_content_models));
+  $cmodels = explode("\n", $exclude_content_models);
+  $cmodels = array_map('trim', $cmodels);
+  return array_filter($cmodels);
 }
 
 /**
