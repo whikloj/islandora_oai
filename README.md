@@ -4,12 +4,11 @@
 
 This module provides an implementation the Open Archives Initiative Protocol for Metadata Harvesting (OAI-PMH) for Islandora fedora repository with a solr index. By implementing the islanodra_oa module, you can expose content (its metadata) as an OAI-PMH repository. It will then be accessible by OAI harvesters For further OAI documentation. For more info, please see [this]( http://www.openarchives.org/OAI/openarchivesprotocol.html) link.
 
-FUNCTIONALITY
---------------
+With this module you can: 
 
-Receive OAI-PMH request of service providers in form of HTTP request (GET or POST)
-Handle the OAI-PMH request
-Respond to OAI-PMH request in form of HTTP response (XML) to the service provider
+* Receive OAI-PMH request of service providers in form of HTTP request (GET or POST)
+* Handle the OAI-PMH request
+* Respond to OAI-PMH request in form of HTTP response (XML) to the service provider
 
 ## Requirements
 
