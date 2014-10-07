@@ -502,9 +502,8 @@ function islandora_oai_get_earliest_datetime() {
 
     $query_results = $object->repository->ri->itqlQuery($itql_query);
     $result = reset($query_results);
-    $datestamp = $result['date']['value'];
-    $date_string = strtotime($datestamp);
-    $earliest_datestamp = gmdate('Y-m-d\TH:i:s\Z', $date_string);
+    $timestamp = strtotime($result['date']['value']);
+    $earliest_datestamp = gmdate('Y-m-d\TH:i:s\Z', $timestamp);
   }
   return $earliest_datestamp;
 }
