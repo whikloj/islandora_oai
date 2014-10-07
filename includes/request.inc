@@ -501,9 +501,9 @@ function islandora_oai_get_earliest_datetime() {
                              order by $date asc';
 
     $query_results = $object->repository->ri->itqlQuery($itql_query);
-    $result = $query_results[0];
-    $earliest_datestamp = $result['date']['value'];
-    $earliest_datestamp = drupal_substr($earliest_datestamp, 0, -5) . 'Z';
+    $result = reset($query_results);
+    $timestamp = strtotime($result['date']['value']);
+    $earliest_datestamp = gmdate('Y-m-d\TH:i:s\Z', $timestamp);
   }
   return $earliest_datestamp;
 }
