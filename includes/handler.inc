@@ -409,7 +409,10 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   }
 
   $query_processor->buildQuery($query);
-  $query_processor->solrParams['fl'] = '*, PID, ' . variable_get('islandora_oai_date_field', 'fgs_lastModifiedDate_dt');
+  $query_processor->solrParams['fl'] = 'PID, ' . variable_get('islandora_oai_date_field', 'fgs_lastModifiedDate_dt');
+  foreach (islandora_oai_get_membership_array() as $fl_field) {
+    $query_processor->solrParams['fl'] .= ", $fl_field";
+  }
 
   if ($date_query) {
     $query_processor->solrParams['fq'][] = $date_query;
