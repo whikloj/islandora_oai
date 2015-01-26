@@ -26,7 +26,7 @@ Install as usual, see [this](https://drupal.org/documentation/install/modules-th
 
 Configure the basic details of the repository in Administration » Islandora » Islandora OAI (admin/islandora/tools/islandora-oai).
 
-![Configuration](http://i.imgur.com/fDCZm5U.png)
+![Configuration](https://camo.githubusercontent.com/6a58e66abcdf9d2b8ffe691e4b9c97edea176c50/687474703a2f2f692e696d6775722e636f6d2f6644435a6d35552e706e67)
 
 After you have exposed content types and some fields, your repository is available at /oai2
 
