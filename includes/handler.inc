@@ -39,7 +39,9 @@ EOQ;
     $object = islandora_object_load($result['object']['value']);
     $description = FALSE;
     if (isset($object['DC'])) {
-      $description = $object['DC']->content;
+      $dom = new DOMDocument();
+      $dom->loadXML($object['DC']->content);
+      $description = $dom->saveXML($dom->documentElement);
     }
     $pid = $result['object']['value'];
     $records[$pid] = array(
