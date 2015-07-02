@@ -500,7 +500,7 @@ function islandora_oai_get_earliest_datetime() {
                              and $object <info:fedora/fedora-system:def/view#lastModifiedDate> $date
                              order by $date asc';
 
-    $query_results = $object->repository->ri->itqlQuery($itql_query);
+    $query_results = $object->repository->ri->itqlQuery($itql_query, 1);
     $result = reset($query_results);
     $timestamp = strtotime($result['date']['value']);
     $earliest_datestamp = gmdate('Y-m-d\TH:i:s\Z', $timestamp);
