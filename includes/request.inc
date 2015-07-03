@@ -490,17 +490,14 @@ function islandora_oai_identify(&$writer, $args) {
  */
 function islandora_oai_get_earliest_datetime() {
   static $earliest_datestamp;
-
   if (!$earliest_datestamp) {
-    $object = islandora_object_load(variable_get('islandora_repository_pid', 'islandora:root'));
-
     $itql_query = 'select $object $date from <#ri>
                              where $object <info:fedora/fedora-system:def/model#label> $title
                              and $object <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
                              and $object <info:fedora/fedora-system:def/view#lastModifiedDate> $date
                              order by $date asc';
-
-    $query_results = $object->repository->ri->itqlQuery($itql_query, 1);
+    $connection = islandora_get_tuque_connection();
+    $query_results = $connection->repository->ri->itqlQuery($itql_query, 1);
     $result = reset($query_results);
     $timestamp = strtotime($result['date']['value']);
     $earliest_datestamp = gmdate('Y-m-d\TH:i:s\Z', $timestamp);
