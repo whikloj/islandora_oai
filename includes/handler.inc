@@ -106,7 +106,7 @@ function islandora_oai_object_response_xml($params) {
     $file = variable_get("islandora_oai_transform_file_{$params['metadata_prefix']}", 'default');
     if ($file != 'default') {
       $xsl->load($file);
-      $input = new DomDocument();
+      $input = new DOMDocument();
 
       $did_load_ok = $input->loadXML($content);
 
@@ -118,8 +118,9 @@ function islandora_oai_object_response_xml($params) {
     else {
       // Need to potentially remove the header information from the XML as
       // the response is embedded within XML.
-      $content = str_replace('<?xml version="1.0" encoding="UTF-8"?>', '', $content);
-      $oai_output = $content;
+      $document_dom = new DOMDocument();
+      $document_dom->loadXML($content);
+      $oai_output = $document_dom->saveXML($document_dom->documentElement);
     }
   }
   // Jam the dc.identifier.thumbnail into the OAI_DC output.
