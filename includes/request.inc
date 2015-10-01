@@ -491,13 +491,19 @@ function islandora_oai_identify(&$writer, $args) {
 function islandora_oai_get_earliest_datetime() {
   static $earliest_datestamp;
   if (!$earliest_datestamp) {
-    $itql_query = 'select $object $date from <#ri>
-                             where $object <info:fedora/fedora-system:def/model#label> $title
-                             and $object <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
-                             and $object <info:fedora/fedora-system:def/view#lastModifiedDate> $date
-                             order by $date asc';
+    $query = <<<EOQ
+SELECT ?object ?date
+FROM <#ri>
+WHERE {
+  ?object <fedora-model:label> ?title ;
+          <fedora-model:state> <fedora-model:Active> ;
+          <fedora-view:lastModifiedDate> ?date .
+}
+ORDER BY ?date
+LIMIT 1
+EOQ;
     $connection = islandora_get_tuque_connection();
-    $query_results = $connection->repository->ri->itqlQuery($itql_query, 1);
+    $query_results = $connection->repository->ri->sparqlQuery($query);
     $result = reset($query_results);
     $timestamp = strtotime($result['date']['value']);
     $earliest_datestamp = gmdate('Y-m-d\TH:i:s\Z', $timestamp);
@@ -873,16 +879,15 @@ function islandora_oai_list_metadata_formats(&$writer, $args) {
         $identifier = str_replace('oai:' . $repo_id . ':', '', $val);
 
         $pid_query = str_replace('_', ':', $identifier);
-        $pid_query = 'info:fedora/' . $pid_query;
-        $itql_query = 'select $object $title from <#ri>
-        where $object <fedora-model:label> $title and $object <mulgara:is> <' . $pid_query . '>';
-
+        $query = <<<EOQ
+ASK {
+  <info:fedora/$pid_query> <fedora-model:hasModel> <info:fedora/fedora-system:FedoraObject-3.0> .
+}
+EOQ;
         $connection = islandora_get_tuque_connection();
-        $query_results = $connection->repository->ri->itqlQuery($itql_query);
-        foreach ($query_results as $result) {
-          $result_pid = $result['object']['uri'];
-        }
-        if (empty($result_pid)) {
+        $query_results = $connection->repository->ri->sparqlQuery($query);
+        $query_result = reset($query_results);
+        if (!$query_results || $query_result === FALSE || strtolower($query_result['k0']['value']) != 'true') {
           islandora_oai_add_error('idDoesNotExist', 'identifier', $identifier);
           return FALSE;
         }
