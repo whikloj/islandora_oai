@@ -509,8 +509,7 @@ EOQ;
           or
             (
             $child <fedora-model:hasModel> $model
-            and $model <fedora-model:hasModel> $parent_model
-            and $parent_model <mulgara:is> <info:fedora/islandora:collectionCModel>
+            and $model <fedora-model:hasModel> <info:fedora/islandora:collectionCModel>
             and $child <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
             )
           minus $child <http://islandora.ca/ontology/relsext#isViewableByRole> $role
@@ -521,13 +520,12 @@ EOQ;
             (
             $child <fedora-model:hasModel> $model
             and $model <mulgara:is> <info:fedora/islandora:collectionCModel>
-            and $parent_model <mulgara:is> <info:fedora/fedora-system:ContentModel-3.0>
+            and $model <fedora-model:hasModel> <info:fedora/fedora-system:ContentModel-3.0>
             )
           or
             (
             $child <fedora-model:hasModel> $model
-            and $model <fedora-model:hasModel> $parent_model
-            and $parent_model <mulgara:is> <info:fedora/islandora:collectionCModel>
+            and $model <fedora-model:hasModel> <info:fedora/islandora:collectionCModel>
             and $child <fedora-model:state> <info:fedora/fedora-system:def/model#Active>
             )
         and
