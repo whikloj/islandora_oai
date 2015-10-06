@@ -455,7 +455,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
       $sets[$key] = $value;
 
       $connection = islandora_get_tuque_connection();
-      if (!variable_get('islandora_risearch_use_itql_for_walking', TRUE)) {
+      if (!variable_get('islandora_risearch_use_itql_when_necessary', TRUE)) {
         $role_filters = array();
         foreach ($user->roles as $role) {
           $role_filters[] = "?role = \"$role\"";
