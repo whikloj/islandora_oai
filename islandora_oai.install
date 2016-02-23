@@ -222,9 +222,9 @@ function islandora_oai_update_7101(&$sandbox) {
  * Installs corrected ETDMS schema URL
  */
 function islandora_oai_update_7102() {
-db_update('islandora_oai_metadata_formats')
+  db_update('islandora_oai_metadata_formats')
     ->fields(array(
-      'oai2_schema' => 'http://www.ndltd.org/standards/metadata/etdms/1-0/etdms.xsd'
+      'oai2_schema' => 'http://www.ndltd.org/standards/metadata/etdms/1-0/etdms.xsd',
     ))
     ->condition('name', 'oai_etdms')
     ->condition('metadata_prefix', 'oai_etdms')
