@@ -219,7 +219,7 @@ function islandora_oai_update_7101(&$sandbox) {
 }
 
 /**
- * Installs corrected ETDMS schema URL
+ * Installs corrected ETDMS schema URL.
  */
 function islandora_oai_update_7102() {
   db_update('islandora_oai_metadata_formats')
