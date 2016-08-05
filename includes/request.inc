@@ -491,22 +491,42 @@ function islandora_oai_identify(&$writer, $args) {
 function islandora_oai_get_earliest_datetime() {
   static $earliest_datestamp;
   if (!$earliest_datestamp) {
-    $query = <<<EOQ
+    switch (variable_get('islandora_oai_query_backend', 'sparql')) {
+      case 'sparql':
+        $query = <<<EOQ
 SELECT ?object ?date
 FROM <#ri>
 WHERE {
-  ?object <fedora-model:label> ?title ;
-          <fedora-model:state> <fedora-model:Active> ;
+  ?object <fedora-model:state> <fedora-model:Active> ;
           <fedora-view:lastModifiedDate> ?date .
 }
 ORDER BY ?date
 LIMIT 1
 EOQ;
-    $connection = islandora_get_tuque_connection();
-    $query_results = $connection->repository->ri->sparqlQuery($query);
-    $result = reset($query_results);
-    $timestamp = strtotime($result['date']['value']);
-    $earliest_datestamp = gmdate('Y-m-d\TH:i:s\Z', $timestamp);
+        $connection = islandora_get_tuque_connection();
+        $query_results = $connection->repository->ri->sparqlQuery($query);
+        $result = reset($query_results);
+        $timestamp = strtotime($result['date']['value']);
+        $earliest_datestamp = gmdate('Y-m-d\TH:i:s\Z', $timestamp);
+        break;
+
+      case 'solr':
+        $date_field = variable_get('islandora_oai_date_field', 'fgs_lastModifiedDate_dt');
+        $qp = new IslandoraSolrQueryProcessor();
+        $params = array(
+          'sort' => "$date_field asc",
+          'limit' => 1,
+        );
+        $qp->buildQuery(format_string('!date_field:* AND !state_field:Active', array(
+          '!date_field' => $date_field,
+          '!state_field' => variable_get('islandora_oai_solr_state_field', 'fgs_state_s'),
+        )));
+        $qp->executeQuery(FALSE);
+        $result = reset($qp->islandoraSolrResult['response']['objects']);
+        $earliest_datestamp = $result['solr_doc'][$date_field];
+        break;
+
+    }
   }
   return $earliest_datestamp;
 }

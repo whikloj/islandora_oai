@@ -24,38 +24,82 @@
  * @see hook_islandora_oai_identify_request_handler()
  */
 function islandora_oai_retrieve_sets($params) {
-  $connection = islandora_get_tuque_connection();
-  $records = array();
-  $filters = array('sameTerm(?model, <info:fedora/islandora:collectionCModel>)');
-  $sparql_query = islandora_oai_construct_sparql_query_for_sets($filters);
-  $total_records = $connection->repository->ri->countQuery($sparql_query, 'sparql');
-  $sparql_query .= <<<EOQ
-  LIMIT {$params['max_records']}
-  OFFSET {$params['token']->deliveredrecords}
+  switch (variable_get('islandora_oai_query_backend', 'sparql')) {
+    case 'sparql':
+      $connection = islandora_get_tuque_connection();
+      $records = array();
+      $filters = array('sameTerm(?model, <info:fedora/islandora:collectionCModel>)');
+      $sparql_query = islandora_oai_construct_sparql_query_for_sets($filters);
+      $total_records = $connection->repository->ri->countQuery($sparql_query, 'sparql');
+      $sparql_query .= <<<EOQ
+
+LIMIT {$params['max_records']}
+OFFSET {$params['token']->deliveredrecords}
 EOQ;
-  $query_results = $connection->repository->ri->sparqlQuery($sparql_query);
-  module_load_include('inc', 'islandora', 'includes/dublin_core');
-  foreach ($query_results as $result) {
-    $object = islandora_object_load($result['object']['value']);
-    $description = FALSE;
-    if (isset($object['DC'])) {
-      $dom = new DOMDocument();
-      $dom->loadXML($object['DC']->content);
-      $description = $dom->saveXML($dom->documentElement);
-    }
-    $pid = $result['object']['value'];
-    $records[$pid] = array(
-      'pid' => $pid,
-      'label' => $result['title']['value'],
-    );
-    if ($description) {
-      $records[$pid]['description'] = $description;
-    }
+      $query_results = $connection->repository->ri->sparqlQuery($sparql_query);
+      foreach ($query_results as $result) {
+        $object = islandora_object_load($result['object']['value']);
+        $description = FALSE;
+        if (isset($object['DC'])) {
+          $description = islandora_oai_get_set_dc_portion($object['DC']);
+        }
+        $pid = $result['object']['value'];
+        $records[$pid] = array(
+          'pid' => $pid,
+          'label' => $result['title']['value'],
+        );
+        if ($description) {
+          $records[$pid]['description'] = $description;
+        }
+      }
+      break;
+
+    case 'solr':
+      $qp = new IslandoraSolrQueryProcessor();
+      $label_field = variable_get('islandora_solr_object_label_field', 'fgs_label_s');
+      $solr_params = array(
+        'limit' => $params['max_records'],
+        'sort' => $label_field,
+      );
+      $qp->buildQuery(format_string('!field:"info:fedora/islandora:collectionCModel"', array(
+        '!field' => variable_get('islandora_oai_content_model_field', 'RELS_EXT_hasModel_uri_ms'),
+      )), $solr_params);
+      $qp->solrStart = $params['token']->deliveredrecords;
+      $qp->executeQuery(FALSE);
+      $total_records = $qp->islandoraSolrResult['response']['numFound'];
+      $records = array();
+      $datastreams_field = variable_get('islandora_solr_datastream_id_field', 'fedora_datastreams_ms');
+      foreach ($qp->islandoraSolrResult['response']['objects'] as $object) {
+        $records[$object['PID']] = array(
+          'pid' => $object['PID'],
+          'label' => $object['solr_doc'][$label_field],
+        );
+        if (isset($object['solr_doc'][$datastreams_field]) && in_array('DC', $object['solr_doc'][$datastreams_field])) {
+          $loaded_object = islandora_object_load($object['PID']);
+          $records[$object['PID']]['description'] = islandora_oai_get_set_dc_portion($loaded_object['DC']);
+        }
+      }
+      break;
   }
   return array(
     'total_records' => $total_records,
     'records' => $records,
   );
+}
+
+/**
+ * Gets the DC portion of a set.
+ *
+ * @param AbstractDatastream $dc
+ *   The DC XML datastream.
+ *
+ * @return string
+ *   The XML to add to the set info.
+ */
+function islandora_oai_get_set_dc_portion(AbstractDatastream $dc) {
+  $dom = new DOMDocument();
+  $dom->loadXML($dc->content);
+  return $dom->saveXML($dom->documentElement);
 }
 
 /**
@@ -636,6 +680,7 @@ function islandora_oai_get_restricted_models() {
  *   The SPARQL query to be executed.
  */
 function islandora_oai_construct_sparql_query_for_sets($filters, $required = array()) {
+  module_load_include('inc', 'islandora', 'includes/tuque');
   $sparql_query = <<<EOQ
   SELECT DISTINCT ?object ?title ?created !vars
   FROM <#ri>
