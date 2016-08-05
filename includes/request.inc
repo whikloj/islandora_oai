@@ -498,6 +498,7 @@ SELECT ?object ?date
 FROM <#ri>
 WHERE {
   ?object <fedora-model:state> <fedora-model:Active> ;
+          <fedora-model:hasModel> <info:fedora/fedora-system:FedoraObject-3.0> ;
           <fedora-view:lastModifiedDate> ?date .
 }
 ORDER BY ?date
