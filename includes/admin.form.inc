@@ -75,7 +75,7 @@ function islandora_oai_admin_form($form, $form_state) {
     '#type' => 'radios',
     '#title' => t('Query Backend'),
     '#default_value' => variable_get('islandora_oai_query_backend', 'sparql'),
-    '#description' => t('For larger repositories, OAI may perform poorly when attempting to order the results of SPARQL queries. In these cases, using the Solr backend may provide better results.'),
+    '#description' => t('For larger repositories, OAI may perform poorly when attempting to perform the SPARQL queries it requires. In these cases, using the Solr backend may provide better results.'),
     '#options' => array(
       'sparql' => t('SPARQL'),
       'solr' => t('Solr'),
