@@ -107,7 +107,7 @@ function islandora_oai_admin_form($form, $form_state) {
     '#type' => 'textfield',
     '#title' => t('Solr Object Ancestors Field'),
     '#default_value' => variable_get('islandora_oai_solr_object_ancestors_field', ''),
-    '#description' => t("A multivalued string The field in Solr that defines an object's ancestors. If left blank, Solr will have to recurse through collections manually when querying sets."),
+    '#description' => t("A multivalued string The field in Solr that defines an object's ancestors. If left blank, Solr will recurse manually to get the child tree of a particular set. Use of this field may return a different set of children than the recursive option; it is the responsibility of the implementer to ensure the ancestors field returns an appropriate hierarchy of parents."),
     '#states' => array(
       'visible' => array(
         ':input[name="islandora_oai_configuration[islandora_oai_query_backend]"]' => array('value' => 'solr'),
