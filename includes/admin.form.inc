@@ -103,6 +103,17 @@ function islandora_oai_admin_form($form, $form_state) {
       ),
     ),
   );
+  $form['islandora_oai_configuration']['islandora_oai_solr_object_ancestors_field'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Solr Object Ancestors Field'),
+    '#default_value' => variable_get('islandora_oai_solr_object_ancestors_field', ''),
+    '#description' => t("A multivalued string The field in Solr that defines an object's ancestors. If left blank, Solr will have to recurse through collections manually when querying sets."),
+    '#states' => array(
+      'visible' => array(
+        ':input[name="islandora_oai_configuration[islandora_oai_query_backend]"]' => array('value' => 'solr'),
+      ),
+    ),
+  );
 
   // Build up the available request handlers.
   $defined_handlers = module_invoke_all(ISLANDORA_OAI_REQUEST_HANDLER_HOOK);
@@ -170,6 +181,7 @@ function islandora_oai_admin_form_submit($form, $form_state) {
   variable_set('islandora_oai_query_backend', $form_state['values']['islandora_oai_configuration']['islandora_oai_query_backend']);
   variable_set('islandora_oai_solr_state_field', $form_state['values']['islandora_oai_configuration']['islandora_oai_solr_state_field']);
   variable_set('islandora_oai_solr_collection_description_field', $form_state['values']['islandora_oai_configuration']['islandora_oai_solr_collection_description_field']);
+  variable_set('islandora_oai_solr_object_ancestors_field', $form_state['values']['islandora_oai_configuration']['islandora_oai_solr_object_ancestors_field']);
   // Because of the dynamic pathing of the OAI path we need to rebuild the
   // menus.
   menu_rebuild();
