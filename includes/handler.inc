@@ -62,7 +62,7 @@ EOQ;
         'sort' => $label_field,
       );
       $qp->buildQuery(format_string('!field:"info:fedora/islandora:collectionCModel"', array(
-        '!field' => variable_get('islandora_oai_content_model_field', 'RELS_EXT_hasModel_uri_ms'),
+        '!field' => variable_get('islandora_solr_content_model_field', 'RELS_EXT_hasModel_uri_ms'),
       )), $solr_params);
       $qp->solrStart = $params['token']->deliveredrecords;
       $qp->executeQuery(FALSE);
@@ -505,7 +505,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
           }
           $descendants[] = $value;
         }
-        $query_processor->solrParams['fq'][] = islandora_oai_build_descendants_fq_statement($descendants);
+        $query_processor->solrParams['fq'][] = islandora_oai_build_membership_fq_statement($descendants);
         break;
 
       case 'solr':
@@ -530,7 +530,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
             }
             $descendants[] = $value;
           }
-          $query_processor->solrParams['fq'][] = islandora_oai_build_descendants_fq_statement($descendants);
+          $query_processor->solrParams['fq'][] = islandora_oai_build_membership_fq_statement($descendants);
         }
         break;
     }
@@ -548,25 +548,28 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
 }
 
 /**
- * Helper function to build an 'fq' statement from a descentants array.
+ * Helper function to build an 'fq' statement for child PIDs.
  *
- * @param array $descendants
- *   The array of descendant collection PIDs.
+ * @param array $children
+ *   The array of child PIDs.
  *
  * @return string
  *   The 'fq' statement.
  */
-function islandora_oai_build_descendants_fq_statement(array $descendants) {
+function islandora_oai_build_membership_fq_statement(array $children) {
   $set_fq = array();
   // We are using OR here to account for fields in Solr that may index
   // just the PID or the entire URI. In the future if performance becomes
   // an issue with huge Solr queries we should re-visit this.
-  foreach ($descendants as $walk) {
+  foreach ($children as $walk) {
     foreach (islandora_oai_get_membership_array() as $collection_field) {
-      $set_fq[] = $collection_field . ':("' . $walk . '" OR "info:fedora/' . $walk . '")';
+      $set_fq[] = format_string('!field:("!walk" OR "info:fedora/!walk")', array(
+        '!field' => $collection_field,
+        '!walk' => $walk,
+      ));
     }
   }
-  return '(' . implode(' OR ', $set_fq) . ')';
+  return implode(' OR ', $set_fq);
 }
 
 /**
@@ -590,22 +593,12 @@ function islandora_oai_query_solr_for_child_sets($parent, &$sets = array()) {
   $qp->solrParams['fl'] = 'PID';
   // Make sure we get everything but still filter on XACML permissions.
   $qp->solrParams['fq'] = array();
-  if (module_exists('islandora_xacml_api')) {
-    module_invoke('islandora_xacml_api', 'islandora_solr_query', $qp);
-  }
-  // Is part of the current collection.
-  $collection_fields = explode("\n", variable_get('islandora_oai_collection_field', "RELS_EXT_isMemberOfCollection_uri_ms\nRELS_EXT_isMemberOf_uri_ms"));
-  $collection_filter = array();
-  foreach ($collection_fields as $collection_field) {
-    $collection_filter[] = format_string('!field:("!set" OR "info:fedora/!set")', array(
-      '!field' => $collection_field,
-      '!set' => $parent,
-    ));
-  }
-  $qp->solrParams['fq'][] = '(' . implode(' OR ', $collection_filter) . ')';
-  // Is also a collection itself.
+  module_invoke('islandora_xacml_api', 'islandora_solr_query', $qp);
+  // Set is part of the current collection.
+  $qp->solrParams['fq'][] = islandora_oai_build_membership_fq_statement($parent);
+  // Set is also a collection itself.
   $qp->solrParams['fq'][] = format_string('!field:"info:fedora/islandora:collectionCModel"', array(
-    '!field' => variable_get('islandora_oai_content_model_field', 'RELS_EXT_hasModel_uri_ms'),
+    '!field' => variable_get('islandora_solr_content_model_field', 'RELS_EXT_hasModel_uri_ms'),
   ));
 
   $qp->executeQuery(FALSE);
@@ -615,6 +608,7 @@ function islandora_oai_query_solr_for_child_sets($parent, &$sets = array()) {
   $pids = array_map($get_pid, $qp->islandoraSolrResult['response']['objects']);
   $diff = array_diff($pids, $sets);
   $sets = array_merge($sets, $pids);
+  // Recurse through the diff.
   foreach ($diff as $child_collection) {
     islandora_oai_query_solr_for_child_sets($child_collection, $sets);
   }
@@ -637,19 +631,7 @@ function islandora_oai_query_ri_for_child_sets($set) {
   $connection = islandora_get_tuque_connection();
   // Query sets from RI (SPARQL).
   if (!variable_get('islandora_risearch_use_itql_when_necessary', TRUE)) {
-    $role_filters = array();
-    foreach ($user->roles as $role) {
-      $role_filters[] = "?role = \"$role\"";
-    }
-    $xacml_filters = array(
-      '!bound(?role) && !bound(?user)',
-      'bound(?role) && (' . implode(' || ', $role_filters) . ')',
-      "bound(?user) && ?user = '$user_name'",
-    );
-    $parenthesis_wrap = function($string) {
-      return "($string)";
-    };
-    $xacml_filter = implode(' || ', array_map($parenthesis_wrap, $xacml_filters));
+    $xacml_filter = module_invoke('islandora_xacml_api', 'islandora_basic_collection_get_query_filters');
     $query = <<<EOQ
 SELECT ?child
 FROM <#ri>

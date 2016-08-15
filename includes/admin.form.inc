@@ -81,38 +81,31 @@ function islandora_oai_admin_form($form, $form_state) {
       'solr' => t('Solr'),
     ),
   );
+  $solr_config_states = array(
+    'visible' => array(
+      ':input[name="islandora_oai_configuration[islandora_oai_query_backend]"]' => array('value' => 'solr'),
+    ),
+  );
   $form['islandora_oai_configuration']['islandora_oai_solr_state_field'] = array(
     '#type' => 'textfield',
     '#title' => t('Solr Object State Field'),
     '#default_value' => variable_get('islandora_oai_solr_state_field', 'fgs_state_s'),
-    '#description' => t("The field in Solr that holds a Fedora object's state. Must be a single-valued string type field."),
-    '#states' => array(
-      'visible' => array(
-        ':input[name="islandora_oai_configuration[islandora_oai_query_backend]"]' => array('value' => 'solr'),
-      ),
-    ),
+    '#description' => t("The field in Solr that holds a Fedora object's state ('Active', 'Inactive', or 'Deleted')."),
+    '#states' => $solr_config_states,
   );
   $form['islandora_oai_configuration']['islandora_oai_solr_collection_description_field'] = array(
     '#type' => 'textfield',
     '#title' => t('Solr Collection Description Field'),
     '#default_value' => variable_get('islandora_oai_solr_collection_description_field', 'dc.description'),
     '#description' => t('The field in Solr to use for collection descriptions.'),
-    '#states' => array(
-      'visible' => array(
-        ':input[name="islandora_oai_configuration[islandora_oai_query_backend]"]' => array('value' => 'solr'),
-      ),
-    ),
+    '#states' => $solr_config_states,
   );
   $form['islandora_oai_configuration']['islandora_oai_solr_object_ancestors_field'] = array(
     '#type' => 'textfield',
     '#title' => t('Solr Object Ancestors Field'),
     '#default_value' => variable_get('islandora_oai_solr_object_ancestors_field', ''),
     '#description' => t("A multivalued string The field in Solr that defines an object's ancestors. If left blank, Solr will recurse manually to get the child tree of a particular set. Use of this field may return a different set of children than the recursive option; it is the responsibility of the implementer to ensure the ancestors field returns an appropriate hierarchy of parents."),
-    '#states' => array(
-      'visible' => array(
-        ':input[name="islandora_oai_configuration[islandora_oai_query_backend]"]' => array('value' => 'solr'),
-      ),
-    ),
+    '#states' => $solr_config_states,
   );
 
   // Build up the available request handlers.
