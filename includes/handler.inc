@@ -595,7 +595,7 @@ function islandora_oai_query_solr_for_child_sets($parent, &$sets = array()) {
   $qp->solrParams['fq'] = array();
   module_invoke('islandora_xacml_api', 'islandora_solr_query', $qp);
   // Set is part of the current collection.
-  $qp->solrParams['fq'][] = islandora_oai_build_membership_fq_statement($parent);
+  $qp->solrParams['fq'][] = islandora_oai_build_membership_fq_statement(array($parent));
   // Set is also a collection itself.
   $qp->solrParams['fq'][] = format_string('!field:"info:fedora/islandora:collectionCModel"', array(
     '!field' => variable_get('islandora_solr_content_model_field', 'RELS_EXT_hasModel_uri_ms'),
