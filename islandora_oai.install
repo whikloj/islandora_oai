@@ -185,6 +185,10 @@ function islandora_oai_uninstall() {
     'islandora_oai_exclude_content_models',
     'islandora_oai_exclude_islandora_namespace',
     'islandora_oai_append_dc_thumbnail',
+    'islandora_oai_query_backend',
+    'islandora_oai_solr_state_field',
+    'islandora_oai_solr_collection_description_field',
+    'islandora_oai_solr_object_ancestors_field',
   );
   array_walk($variables, 'variable_del');
 }
