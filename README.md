@@ -28,6 +28,21 @@ Configure the basic details of the repository in Administration » Islandora » 
 
 ![Configuration](https://cloud.githubusercontent.com/assets/4957043/19118707/4a310ec2-8aeb-11e6-876c-dd9e116c0688.png)
 
+## Configuration - the next page
+
+If you select "configure" you see the following screens:
+
+![Solr and content model config](https://cloud.githubusercontent.com/assets/4957043/19119122/be537f5a-8aec-11e6-9e47-12909df40a83.png)
+
+* Solr date field - A datestamp to be appended to the metadata via the Solr index.
+* Solr RELS-EXT collection field - Fields entered here establish the object relationship of metadata to be passed on to the harvester.
+* Solr XACML role field - The site's Solr fields defining viewing permissions.
+* Solr hasModel field - The site's Solr field defining an object's content model.
+* Exclude Content Models - A list of content models, defined by their PID, to exclude from harvests. - if you exclude the collection content model, it disables the use of "sets" in OAi, as the name of the set is made by taking the PID of the collection and replacing the colon with an underscore.
+* Exclude objects within the "islandora" namespace
+* Append on dc.identifier.thumbnail to OAI_DCrequests? - this only has an effect on OAI_DC output.
+
+
 After you have exposed content types and some fields, your repository is available at /oai2
 
 Some example requests are as follows:
