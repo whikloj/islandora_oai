@@ -42,6 +42,15 @@ If you select "configure" you see the following screens:
 * Exclude objects within the "islandora" namespace
 * Append on dc.identifier.thumbnail to OAI_DCrequests? - this only has an effect on OAI_DC output.
 
+## Metadata Format
+
+This section allows you to configure the settings for the OAI-PMH'smetadata_prefix verb; Islandora uses XSL files to define the method for transforming your site's metadata datastreams into a format compatible with the OAI-PMH. Islandora OAI comes with two XSL files; they convert the MODS datastream of an object to either Electronic Thesis and Dissertation Metadata Standard format or Dublin Core format, which then can be served up to a harvester.
+You will have to fill out and save this section for each metadata prefix you wish to enable.
+Below are sample configs for a oai_dc prefix and a mods prefix.
+
+![oai_dc setup](https://cloud.githubusercontent.com/assets/4957043/19119982/7ace7d18-8aef-11e6-857e-94a68daba0fa.png)
+
+![mods setup](https://cloud.githubusercontent.com/assets/4957043/19120023/a27c3f6c-8aef-11e6-805e-0fb494053e11.png)
 
 After you have exposed content types and some fields, your repository is available at /oai2
 
