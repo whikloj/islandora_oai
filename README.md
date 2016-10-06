@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This module provides an implementation of a data provider according to the Open Archives Initiative Protocol for Metadata Harvesting (OAI-PMH) for an Islandora fedora repository with a solr index. By implementing the islandora_oai module, you can expose content (its metadata) as an OAI-PMH repository. It will then be accessible by OAI harvesters For further OAI documentation. For more info, please see [this]( http://www.openarchives.org/OAI/openarchivesprotocol.html) link.
+This module provides an implementation of a data provider according to the Open Archives Initiative Protocol for Metadata Harvesting (OAI-PMH) for an Islandora fedora repository with a solr index. By implementing the islandora_oai module, you can expose content (its metadata) as an OAI-PMH repository. It will then be accessible by OAI harvesters. For further OAI documentation. For more info, please see [this]( http://www.openarchives.org/OAI/openarchivesprotocol.html) link.
 
 With this module you can: 
 
@@ -44,7 +44,7 @@ If you select "configure" you see the following screens:
 
 ## Metadata Format
 
-This section allows you to configure the settings for the OAI-PMH'smetadata_prefix verb; Islandora uses XSL files to define the method for transforming your site's metadata datastreams into a format compatible with the OAI-PMH. Islandora OAI comes with two XSL files; they convert the MODS datastream of an object to either Electronic Thesis and Dissertation Metadata Standard format or Dublin Core format, which then can be served up to a harvester.
+This section allows you to configure the settings for the OAI-PMH's metadata_prefix verb; Islandora uses XSL files to define the method for transforming your site's metadata datastreams into a format compatible with the OAI-PMH. Islandora OAI comes with two XSL files; they convert the MODS datastream of an object to either Electronic Thesis and Dissertation Metadata Standard format or Dublin Core format, which then can be served up to a harvester.
 You will have to fill out and save this section for each metadata prefix you wish to enable.
 Below are sample configs for a oai_dc prefix and a mods prefix.
 
