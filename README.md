@@ -40,7 +40,7 @@ If you select "configure" you see the following screens:
 * Solr hasModel field - The site's Solr field defining an object's content model.
 * Exclude Content Models - A list of content models, defined by their PID, to exclude from harvests. - if you exclude the collection content model, it disables the use of "sets" in OAi, as the name of the set is made by taking the PID of the collection and replacing the colon with an underscore.
 * Exclude objects within the "islandora" namespace
-* Append on dc.identifier.thumbnail to OAI_DCrequests? - this only has an effect on OAI_DC output.
+* Append on dc.identifier.thumbnail to OAI_DC requests? - this only has an effect on OAI_DC output.
 
 ## Metadata Format
 
