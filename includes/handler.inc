@@ -538,7 +538,9 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   $query_processor->solrStart = $start;
   $query_processor->solrLimit = variable_get('islandora_oai_max_size', '20');
   try {
-    $query_processor->executeQuery(FALSE);
+    // XXX: Use POST as the filters for membership to a collection can be very
+    // large.
+    $query_processor->executeQuery(FALSE, TRUE);
     $solr_results = $query_processor->islandoraSolrResult['response'];
   }
   catch (Exception $e) {
@@ -601,7 +603,9 @@ function islandora_oai_query_solr_for_child_sets($parent, &$sets = array()) {
     '!field' => variable_get('islandora_solr_content_model_field', 'RELS_EXT_hasModel_uri_ms'),
   ));
 
-  $qp->executeQuery(FALSE);
+  // XXX: Use POST as the filters for membership to a collection can be very
+  // large.
+  $qp->executeQuery(FALSE, TRUE);
   $get_pid = function($object) {
     return $object['PID'];
   };
