@@ -779,7 +779,8 @@ function islandora_oai_construct_sparql_query_for_sets($filters, $required = arr
   WHERE {
     ?object <fedora-model:hasModel> ?model ;
             <fedora-model:label> ?title ;
-            <fedora-model:createdDate> ?created .
+            <fedora-model:createdDate> ?created ;
+            <fedora-model:state> <fedora-model:Active> .
     !required
     !optionals
     !filters
