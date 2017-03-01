@@ -33,4 +33,4 @@ script:
   - $ISLANDORA_DIR/tests/scripts/line_endings.sh sites/all/modules/islandora_oai
   - drush coder-review --reviews=production,security,style,i18n,potx,sniffer islandora_oai
   - phpcpd --names *.module,*.inc,*.test sites/all/modules/islandora_oai
-  - drush test-run --uri=http://localhost:8081 "Islandora OAI"
+  - php scripts/run-tests.sh --php `phpenv which php` --url http://localhost:8081 --verbose "Islandora OAI"
