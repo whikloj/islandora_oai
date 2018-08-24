@@ -676,6 +676,9 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec = FALSE) {
         return FALSE;
       }
     }
+    $from = isset($from) ? $from : NULL;
+    $until = isset($until) ? $until : NULL;
+    $query_args = array($from, $until);
   }
   $params = array(
     'token' => $token,
