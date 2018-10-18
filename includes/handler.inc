@@ -183,7 +183,7 @@ function islandora_oai_object_response_xml($params) {
     // See if we need to XPath to a specific spot to add it.
     $dom = new DOMDocument();
     $dom->loadXML($oai_output);
-    $results = db_query('SELECT * FROM {islandora_oai_metadata_formats} WHERE metadata_prefix = :metadata_prefix', array(':metadata_prefix' => $params['metadata_prefix']));
+    $results = db_query('SELECT * FROM {islandora_oai_metadata_formats} WHERE BINARY metadata_prefix = :metadata_prefix', array(':metadata_prefix' => $params['metadata_prefix']));
     $record = $results->fetchObject();
 
     $object_url = url("islandora/object/{$object->id}", array(
@@ -549,6 +549,7 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   }
   catch (Exception $e) {
     drupal_set_message(t('error searching @message', array('@message' => $e->getMessage())), 'error');
+    $solr_results = array();
   }
   return $solr_results;
 }
@@ -590,8 +591,6 @@ function islandora_oai_build_membership_fq_statement(array $children) {
  *   A list of set PIDs.
  */
 function islandora_oai_query_solr_for_child_sets($parent, &$sets = array()) {
-  global $user;
-  $user_name = $user->uid === 0 ? 'anonymous' : $user->name;
 
   module_load_include('inc', 'islandora_solr', 'includes/utilities');
   $qp = new IslandoraSolrQueryProcessor();
