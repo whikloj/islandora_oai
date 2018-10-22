@@ -448,7 +448,7 @@ function islandora_oai_datetime_to_solr_time($datetime, $until = FALSE) {
  */
 function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $set = NULL, $date_query = NULL) {
   $query_processor = new IslandoraSolrQueryProcessor();
-
+  module_load_include('inc', 'islandora_solr', 'includes/utilities');
   // Build the query string.
   if (empty($query)) {
     $query = '*:*';
@@ -459,7 +459,6 @@ function islandora_oai_query_solr($start = 0, $field = 'PID', $query = NULL, $se
   $query_processor->buildQuery($query);
 
   if (variable_get('islandora_oai_solr_remove_base_filters', FALSE)) {
-    module_load_include('inc', 'islandora_solr', 'includes/utilities');
     // Remove any base search filters.
     $query_processor->solrParams = islandora_solr_remove_base_filters($query_processor->solrParams);
   }
