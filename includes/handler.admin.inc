@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @file
  * Houses Islandora OAI request handler specific configuration.
@@ -15,7 +16,7 @@
  * @return array
  *   A renderable array representing the handler configuration form.
  */
-function islandora_oai_handler_configuration_form($form, &$form_state) {
+function islandora_oai_handler_configuration_form(array $form, array &$form_state) {
   $form = array(
     '#tree' => TRUE,
   );
@@ -248,7 +249,7 @@ function islandora_oai_handler_configuration_form($form, &$form_state) {
  * @param array $form_state
  *   An array containing the Drupal form state.
  */
-function islandora_oai_handler_configuration_form_validate($form, &$form_state) {
+function islandora_oai_handler_configuration_form_validate(array $form, array &$form_state) {
   $metadata_formats = array();
   $results = db_query('SELECT metadata_prefix FROM {islandora_oai_metadata_formats}');
   foreach ($results as $row) {
@@ -272,7 +273,7 @@ function islandora_oai_handler_configuration_form_validate($form, &$form_state) 
  * @param array $form_state
  *   An array containing the Drupal form state.
  */
-function islandora_oai_handler_configuration_form_submit($form, &$form_state) {
+function islandora_oai_handler_configuration_form_submit(array $form, array &$form_state) {
   variable_set('islandora_oai_collection_field', $form_state['values']['islandora_oai_configuration']['islandora_oai_collection_field']);
   variable_set('islandora_oai_content_model_field', $form_state['values']['islandora_oai_configuration']['islandora_oai_content_model_field']);
   variable_set('islandora_oai_exclude_content_models', $form_state['values']['islandora_oai_configuration']['islandora_oai_exclude_content_models']);
@@ -309,7 +310,7 @@ function islandora_oai_handler_configuration_form_submit($form, &$form_state) {
  * @return array
  *   An array representing the file management form.
  */
-function islandora_oai_file_management_form($form, &$form_state) {
+function islandora_oai_file_management_form(array $form, array &$form_state) {
   // Grab all the user uploaded files.
   $oai_uploaded_files = array();
   $upload_path = 'public://islandora_oai_xsls';
@@ -374,7 +375,7 @@ function islandora_oai_file_management_form($form, &$form_state) {
  * @param array $form_state
  *   An array containing the Drupal form state.
  */
-function islandora_oai_file_management_form_validate($form, $form_state) {
+function islandora_oai_file_management_form_validate(array $form, array $form_state) {
   if (end($form_state['triggering_element']['#parents']) == 'remove_selected') {
     $selected = FALSE;
     foreach ($form_state['values']['table'] as $value) {
@@ -388,6 +389,7 @@ function islandora_oai_file_management_form_validate($form, $form_state) {
     }
   }
 }
+
 /**
  * Submit handler for the islandora_oai_file_management form.
  *
@@ -396,7 +398,7 @@ function islandora_oai_file_management_form_validate($form, $form_state) {
  * @param array $form_state
  *   An array containing the Drupal form state.
  */
-function islandora_oai_file_management_form_submit($form, &$form_state) {
+function islandora_oai_file_management_form_submit(array $form, array &$form_state) {
   $deleted_count = 0;
   $fid_or = db_or();
   foreach ($form_state['values']['table'] as $uri => $selected) {
@@ -429,7 +431,7 @@ function islandora_oai_file_management_form_submit($form, &$form_state) {
  * @param array $form_state
  *   An array containing the Drupal form state.
  */
-function islandora_oai_upload_file($form, $form_state) {
+function islandora_oai_upload_file(array $form, array $form_state) {
   $file = file_save_upload('islandora_oai_upload_xsl', array('file_validate_extensions' => array('xsl xslt')), 'public://islandora_oai_xsls');
   if ($file) {
     $file->status = FILE_STATUS_PERMANENT;

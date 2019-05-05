@@ -13,6 +13,9 @@
  *   file system and the value is the name of the file.
  */
 function hook_islandora_oai_get_xsl_files() {
+  return array(
+    '/some/path/to/an/xsl/file.xsl' => 'file.xsl',
+  );
 }
 
 /**
@@ -134,9 +137,8 @@ function hook_islandora_oai_identify_request_handler() {
 /**
  * Get module supplied XSLT params for self transform.
  *
- * * @param AbstractObject $object
- *   The object being called for the OAI request
- *
+ * @param AbstractObject $object
+ *   The object being called for the OAI request.
  * @param string $metadata_prefix
  *   The handler metadata prefix for the request.
  *
@@ -145,7 +147,13 @@ function hook_islandora_oai_identify_request_handler() {
  *   namespace for the parameters, where the array contains the params to be
  *   passed to the XSLT transform.
  */
-function hook_islandora_oai_self_transform_params($object, $metadata_prefix) {
+function hook_islandora_oai_self_transform_params(AbstractObject $object, $metadata_prefix) {
+  return array(
+    'mods' => array(
+      'param1' => 'value1',
+      'param2' => 'value2',
+    ),
+  );
 }
 
 /**
@@ -159,7 +167,7 @@ function hook_islandora_oai_self_transform_params($object, $metadata_prefix) {
  *   executed.
  *   -pid (string): The pid of the object described in the record.
  */
-function hook_islandora_oai_record_alter(&$oai_record, &$params) {
+function hook_islandora_oai_record_alter(&$oai_record, array &$params) {
   if (ip_address() == '123.456.789.789' && $params['metadata_prefix'] == 'oai_dc') {
     $rights_value = "We want a custom rights statement.";
     $rights_element = "<dc:rights>" . $rights_value . "</dc:rights>";

@@ -99,7 +99,6 @@ function islandora_oai_islandora_oai_get_xsl_files() {
   return $transform_options;
 }
 
-
 /**
  * Implements hook_cron().
  */
