@@ -16,7 +16,7 @@
  * @return array
  *   A renderable array representing the islandora_oai administration form.
  */
-function islandora_oai_admin_form($form, $form_state) {
+function islandora_oai_admin_form(array $form, array $form_state) {
   global $base_url;
   $form = array(
     '#tree' => TRUE,
@@ -134,7 +134,7 @@ function islandora_oai_admin_form($form, $form_state) {
       );
       $form['islandora_oai_configuration']['handlers']['configuration'][$name] = array(
         '#type' => 'item',
-        '#markup' => (isset($profile['configuration']) AND $profile['configuration'] != '') ? l(t('configure'), $profile['configuration']) : '',
+        '#markup' => (isset($profile['configuration']) && $profile['configuration'] != '') ? l(t('configure'), $profile['configuration']) : '',
       );
     }
     $form['islandora_oai_configuration']['handlers']['default'] = array(
@@ -163,7 +163,7 @@ function islandora_oai_admin_form($form, $form_state) {
  * @param array $form_state
  *   An array containing the Drupal form state.
  */
-function islandora_oai_admin_form_submit($form, $form_state) {
+function islandora_oai_admin_form_submit(array $form, array $form_state) {
   variable_set('islandora_oai_repository_name', $form_state['values']['islandora_oai_configuration']['islandora_oai_repository_name']);
   variable_set('islandora_oai_path', $form_state['values']['islandora_oai_configuration']['islandora_oai_path']);
   variable_set('islandora_oai_repository_identifier', $form_state['values']['islandora_oai_configuration']['islandora_oai_repository_identifier']);

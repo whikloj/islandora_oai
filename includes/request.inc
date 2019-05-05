@@ -41,7 +41,7 @@ function islandora_oai_parse_request() {
   }
 
   // Argument repeated more than once in the GET request.
-  $arg_list = explode('&', ($_SERVER['QUERY_STRING']));
+  $arg_list = isset($_SERVER['QUERY_STRING']) ? explode('&', ($_SERVER['QUERY_STRING'])) : array();
   $repeat_arg = FALSE;
   $multiple_list = array();
   foreach ($arg_list as $arg) {
@@ -164,7 +164,7 @@ function islandora_oai_get_errors() {
  * @param string $value
  *   The argument value causing the error.
  *
- * @return NULL|array
+ * @return null|array
  *   Nothing is returned if not 'get', an array of errors otherwise.
  */
 function islandora_oai_add_error($code, $argument = '', $value = '') {
@@ -185,7 +185,7 @@ function islandora_oai_add_error($code, $argument = '', $value = '') {
  * @param string $value
  *   The argument value causing the error.
  *
- * @return NULL|array
+ * @return null|array
  *   Nothing is returned if not 'get', an array of errors otherwise.
  */
 function islandora_oai_errors($code, $argument = '', $value = '') {
@@ -302,7 +302,7 @@ function islandora_oai_errors($code, $argument = '', $value = '') {
  * @return bool
  *   FALSE if we encountered an error.
  */
-function islandora_oai_get_record(&$writer, $args) {
+function islandora_oai_get_record(&$writer, array $args) {
   foreach ($args as $key => $val) {
     switch ($key) {
       case 'identifier':
@@ -442,7 +442,7 @@ function islandora_oai_get_random_token() {
  * @return bool
  *   FALSE if an error is encoutered.
  */
-function islandora_oai_identify(&$writer, $args) {
+function islandora_oai_identify(&$writer, array $args) {
   $error_text = islandora_oai_get_errors();
 
   // Catch for a bad argument.
@@ -538,14 +538,17 @@ EOQ;
  * @param object $writer
  *   The XMLWriter object being passed by reference for constructing our output.
  * @param array $args
- *   Arguments of the POST or GET Request
+ *   Arguments of the POST or GET Request.
  * @param bool $list_rec
  *   List identifiers if FALSE, records if TRUE.
  *
  * @return bool
  *   FALSE if an error is encountered.
+ *
+ * @throws \Exception
+ *   One of the INSERTs failed in db->execute().
  */
-function islandora_oai_list_id_rec(&$writer, $args, $list_rec = FALSE) {
+function islandora_oai_list_id_rec(&$writer, array $args, $list_rec = FALSE) {
   $query_args = array();
   // Max records to send in one response.
   $max_records = variable_get('islandora_oai_max_size', '20');
@@ -750,7 +753,7 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec = FALSE) {
 /**
  * Build a record response given a record.
  *
- * @param object $writer
+ * @param \XMLWriter $writer
  *   The XMLWriter object being passed by reference for constructing our output.
  * @param array $record
  *   An array containing at least:
@@ -762,8 +765,11 @@ function islandora_oai_list_id_rec(&$writer, $args, $list_rec = FALSE) {
  *   Whether to display one record or not.
  * @param string $metadata_prefix
  *   The metadata prefix we are searching for.
+ *
+ * @throws \Exception
+ *   When DateTime construct fails.
  */
-function islandora_oai_build_record_response(&$writer, $record, $full_record = FALSE, $metadata_prefix = 'oai_dc') {
+function islandora_oai_build_record_response(XMLWriter &$writer, array $record, $full_record = FALSE, $metadata_prefix = 'oai_dc') {
   $identifier = $record['pid'];
   $identifier = str_replace(':', '_', $identifier);
   $repo_id = variable_get('islandora_oai_repository_identifier', 'drupal-site.org');
@@ -818,7 +824,7 @@ function islandora_oai_build_record_response(&$writer, $record, $full_record = F
  * @param string $datetime
  *   Time string pulled from the request.
  *
- * @return DateTime
+ * @return false|int
  *   A DateTime string.
  */
 function islandora_oai_datetime_to_time($datetime) {
@@ -829,7 +835,7 @@ function islandora_oai_datetime_to_time($datetime) {
 /**
  * Generate the resumption token given a token string.
  *
- * @param object $writer
+ * @param \XMLWriter $writer
  *   The XMLWriter object being passed by reference for constructing our output.
  * @param int $num_rows
  *   The complete list size.
@@ -840,7 +846,7 @@ function islandora_oai_datetime_to_time($datetime) {
  * @param string $token
  *   The ID of the resumption token.
  */
-function islandora_oai_write_token_xml(&$writer, $num_rows, $delivered_records, $expire_time = NULL, $token = NULL) {
+function islandora_oai_write_token_xml(XMLWriter &$writer, $num_rows, $delivered_records, $expire_time = NULL, $token = NULL) {
   if ($token) {
     $writer->startElement('resumptionToken');
     $writer->writeAttribute('expirationDate', $expire_time);
@@ -887,7 +893,7 @@ function islandora_oai_get_token($resumption_token) {
 /**
  * List all the Metadata formats of this repository.
  *
- * @param object $writer
+ * @param \XMLWriter $writer
  *   The XMLWriter object being passed by reference for constructing our output.
  * @param array $args
  *   Arguments of the $_GET or $_POST request.
@@ -895,7 +901,7 @@ function islandora_oai_get_token($resumption_token) {
  * @return bool
  *   FALSE if an error is encountered.
  */
-function islandora_oai_list_metadata_formats(&$writer, $args) {
+function islandora_oai_list_metadata_formats(XMLWriter &$writer, array $args) {
   foreach ($args as $key => $val) {
     switch ($key) {
       case 'identifier':
@@ -968,14 +974,16 @@ EOQ;
  *
  * @param object $writer
  *   The XMLWriter object being passed by reference for constructing our output.
- *
  * @param array $args
  *   Arguments of the $_POST or the $_GET request.
  *
  * @return bool
  *   FALSE if an error is encountered.
+ *
+ * @throws \Exception
+ *   One of the INSERTs failed in db->execute().
  */
-function islandora_oai_list_sets($writer, $args) {
+function islandora_oai_list_sets($writer, array $args) {
   module_load_include('inc', 'islandora', 'includes/utilities');
 
   // Max records to send in one response.

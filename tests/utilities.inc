@@ -5,6 +5,9 @@
  * Utility functions for the OAI tests.
  */
 
+/**
+ * Class IslandoraOAIWebTestCase
+ */
 class IslandoraOAIWebTestCase extends IslandoraWebTestCase {
 
   /**
@@ -20,7 +23,7 @@ class IslandoraOAIWebTestCase extends IslandoraWebTestCase {
    * @return array
    *   An associative array of queries => results.
    */
-  public function getXpathFromOAIRequest($request, $xpaths, $prefix = 'oai') {
+  public function getXpathFromOaiRequest($request, $xpaths, $prefix = 'oai') {
     $path = $GLOBALS['base_url'] . '/oai2?' . $request;
     $xml = simplexml_load_string($this->drupalGet($path));
     if (!$xml) {
