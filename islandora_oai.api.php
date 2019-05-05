@@ -139,7 +139,6 @@ function hook_islandora_oai_identify_request_handler() {
  *
  * @param AbstractObject $object
  *   The object being called for the OAI request.
- *
  * @param string $metadata_prefix
  *   The handler metadata prefix for the request.
  *
