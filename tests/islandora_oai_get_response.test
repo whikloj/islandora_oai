@@ -6,7 +6,7 @@
  */
 
 /**
- * Class IslandoraOAIGETResponseTestCase
+ * Class IslandoraOAIGETResponseTestCase.
  */
 class IslandoraOAIGETResponseTestCase extends IslandoraOAIWebTestCase {
   // @TODO: Literally anything.

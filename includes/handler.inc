@@ -423,7 +423,7 @@ function islandora_oai_datetime_to_solr_time($datetime, $until = FALSE) {
     default:
       // XXX: Maintain original behaviour of returning NULL... Should perhaps
       // throw an exception? Dunno.
-      return null;
+      return NULL;
   }
 
   return $to_return;

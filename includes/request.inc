@@ -176,7 +176,8 @@ function islandora_oai_add_error($code, $argument = '', $value = '') {
  *
  * Helper function for islandora_oai_add_error and islandora_oai_get_errors.
  * Basically faking a singleton with getter and setter methods.
- * OAI2 specification: http://www.openarchives.org/OAI/openarchivesprotocol.html
+ * OAI2 specification.
+ * @see: http://www.openarchives.org/OAI/openarchivesprotocol.html
  *
  * @param string $code
  *   Error code to be added, or 'get' if we want to get the errors array.

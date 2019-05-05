@@ -6,7 +6,7 @@
  */
 
 /**
- * Class IslandoraOAIWebTestCase
+ * Class IslandoraOAIWebTestCase.
  */
 class IslandoraOAIWebTestCase extends IslandoraWebTestCase {
 
